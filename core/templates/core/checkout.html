@@ -1,0 +1,136 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% block title %}{{ titulo }} - Cosmofood{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 my-12">
+    <h1 class="text-4xl font-bold mb-8 text-gray-800">
+        <i class="fas fa-credit-card text-primary"></i> Finalizar Compra
+    </h1>
+
+    <form method="POST">
+    {% csrf_token %}
+    <div class="grid lg:grid-cols-3 gap-8">
+        
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl shadow-lg p-6 space-y-6">
+                
+                <div>
+                    <h2 class="text-2xl font-bold mb-4">1. Tipo de Entrega</h2>
+                    <div class="space-y-2">
+                        {% for value, text in tipos_de_orden %}  <label class="flex items-center p-3 border rounded-lg has-[:checked]:bg-primary-light has-[:checked]:border-primary">
+                            <input type="radio" name="tipo_orden" value="{{ value }}" class="mr-3 tipo-orden-radio" {% if forloop.first %}checked{% endif %}>
+                            <span>{{ text }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div id="datos-entrega-bloque" style="display: none;"> <h2 class="text-2xl font-bold mb-4">2. Datos de Entrega</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="direccion_entrega" class="block text-sm font-medium text-gray-700">Dirección</label>
+                            <input type="text" name="direccion_entrega" id="direccion_entrega" value="{{ user.direccion|default:'' }}" class="mt-1 block w-full border border-gray-300 rounded-lg p-2" placeholder="Tu calle, número, comuna...">
+                            <small class="text-gray-500">Obligatorio si pides a domicilio.</small>
+                        </div>
+                        <div>
+                            <label for="telefono" class="block text-sm font-medium text-gray-700">Teléfono</label>
+                            <input type="text" name="telefono" id="telefono" value="{{ user.telefono|default:'' }}" class="mt-1 block w-full border border-gray-300 rounded-lg p-2" placeholder="+56 9 ....">
+                        </div>
+                        <div>
+                            <label for="notas_cliente" class="block text-sm font-medium text-gray-700">Notas Adicionales</label>
+                            <textarea name="notas_cliente" id="notas_cliente" rows="3" class="mt-1 block w-full border border-gray-300 rounded-lg p-2" placeholder="¿Sin mayonesa? ¿Dejar en conserjería?"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-2xl font-bold mb-4">3. Método de Pago</h2>
+                    <div class="space-y-2">
+                        {% for metodo in metodos_pago %}
+                        <label class="flex items-center p-3 border rounded-lg has-[:checked]:bg-primary-light has-[:checked]:border-primary">
+                            <input type="radio" name="metodo_pago" value="{{ metodo.id }}" class="mr-3" {% if forloop.first %}checked{% endif %}>
+                            <span>{{ metodo.nombre }} ({{ metodo.get_tipo_display }})</span>
+                        </label>
+                        {% empty %}
+                        <p class="text-red-500">No hay métodos de pago configurados. Contacta al administrador.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden sticky top-24">
+                <div class="bg-gray-100 border-b p-4">
+                    <h5 class="font-bold text-xl text-gray-800">Resumen del Pedido</h5>
+                </div>
+                <div class="p-6 max-h-60 overflow-y-auto">
+                    {% for item in items %}
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="font-semibold">{{ item.cantidad }}x {{ item.producto.nombre }}</span>
+                        <span class="text-gray-700">${{ item.subtotal|floatformat:0 }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="p-6 border-t space-y-4">
+                    <div class="flex justify-between items-center pb-3 border-b">
+                        <span class="text-gray-600">Subtotal</span>
+                        <span class="font-semibold text-gray-800">${{ carrito.total_precio|floatformat:0 }}</span>
+                    </div>
+                    <div class="flex justify-between items-center pb-3 border-b">
+                        <span class="text-gray-600">Costo de envío</span>
+                        <span class="font-semibold text-gray-800">$0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xl font-bold pt-2">
+                        <span>Total</span>
+                        <span class="text-primary">${{ carrito.total_precio|floatformat:0 }}</span>
+                    </div>
+                </div>
+                <div class="p-6 pt-0">
+                    <button type="submit" class="block w-full bg-green-500 hover:bg-green-600 text-white font-semibold text-center py-3 rounded-lg transition duration-200">
+                        <i class="fas fa-check-circle mr-2"></i> Confirmar Pedido
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. Encuentra los elementos
+        const radios = document.querySelectorAll('.tipo-orden-radio');
+        const bloqueEntrega = document.getElementById('datos-entrega-bloque');
+
+        // 2. Función para mostrar/ocultar
+        function toggleEntrega() {
+            // Busca el radio que está SELECCIONADO
+            const seleccionado = document.querySelector('.tipo-orden-radio:checked');
+            
+            // Si existe uno seleccionado y su valor es 'delivery'
+            if (seleccionado && seleccionado.value === 'delivery') {
+                bloqueEntrega.style.display = 'block';
+            } else {
+                bloqueEntrega.style.display = 'none';
+            }
+        }
+
+        // 3. Llama a la función cuando se cambia una opción
+        radios.forEach(radio => {
+            radio.addEventListener('change', toggleEntrega);
+        });
+
+        // 4. Llama a la función al cargar la página para establecer el estado inicial
+        toggleEntrega();
+    });
+</script>
+{% endblock %}
+
+
+

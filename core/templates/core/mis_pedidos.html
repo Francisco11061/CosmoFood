@@ -1,0 +1,410 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Mis Pedidos - Cosmofood{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timeline-step {
+        position: relative;
+        padding-left: 2rem;
+    }
+    
+    .timeline-step::before {
+        content: '';
+        position: absolute;
+        left: 0.5rem;
+        top: 2rem;
+        width: 2px;
+        height: calc(100% - 1.5rem);
+        background: #e5e7eb;
+    }
+    
+    .timeline-step:last-child::before {
+        display: none;
+    }
+    
+    .timeline-icon {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border: 3px solid #e5e7eb;
+        z-index: 1;
+    }
+    
+    .timeline-icon.active {
+        border-color: #f97316;
+        background: #fff7ed;
+        color: #f97316;
+    }
+    
+    .timeline-icon.completed {
+        border-color: #10b981;
+        background: #d1fae5;
+        color: #10b981;
+    }
+    
+    .pedido-card {
+        transition: all 0.3s ease;
+    }
+    
+    .pedido-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    }
+    
+    .pedido-header {
+        transition: background-color 0.2s ease;
+    }
+    
+    .pedido-header:hover {
+        background-color: #f9fafb;
+    }
+    
+    .chevron-icon {
+        transition: transform 0.3s ease;
+    }
+    
+    .chevron-icon.rotated {
+        transform: rotate(180deg);
+    }
+    
+    .pedido-body {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s ease-out;
+    }
+    
+    .pedido-body.expanded {
+        max-height: 2000px;
+    }
+    
+    .badge-tipo {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .producto-item {
+        transition: background-color 0.2s ease;
+    }
+    
+    .producto-item:hover {
+        background-color: #f3f4f6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 my-12">
+    <h1 class="text-4xl font-bold mb-8 text-gray-800">
+        <i class="fas fa-history text-primary"></i> Mis Pedidos
+    </h1>
+
+    {% if not pedidos %}
+        <div class="max-w-2xl mx-auto">
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-12 text-center shadow-lg">
+                <div class="text-blue-500 text-7xl mb-6 animate-bounce">
+                    <i class="fas fa-clipboard-list"></i>
+                </div>
+                <h4 class="text-3xl font-bold text-blue-900 mb-4">Aún no tienes pedidos</h4>
+                <p class="text-blue-700 text-lg mb-8">Parece que todavía no has realizado ninguna compra. ¡Explora nuestro menú y haz tu primer pedido!</p>
+                <a href="{% url 'catalogo_productos' %}" class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold px-8 py-4 rounded-xl transition duration-300 transform hover:scale-105 shadow-lg">
+                    <i class="fas fa-utensils"></i> 
+                    <span>Explorar Menú</span>
+                </a>
+            </div>
+        </div>
+    {% else %}
+        <div class="space-y-6">
+            {% for pedido in pedidos %}
+            <div class="pedido-card bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
+
+                <!-- Header del Pedido -->
+                <div class="pedido-header flex flex-wrap justify-between items-center p-5 border-b border-gray-200 gap-3 cursor-pointer" onclick="togglePedido(this)">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-chevron-down chevron-icon text-gray-400 text-sm"></i>
+                        <div>
+                            <span class="font-bold text-xl text-gray-800">Pedido #{{ pedido.numero_pedido }}</span>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-gray-500 text-sm">
+                                    <i class="far fa-calendar-alt mr-1"></i>
+                                    {{ pedido.fecha_creacion|date:"d/m/Y H:i" }}
+                                </span>
+                                
+                                <!-- Badge de Tipo de Orden -->
+                                <span class="badge-tipo text-xs px-2 py-1 rounded-full font-semibold
+                                    {% if pedido.tipo_orden == 'delivery' %}bg-purple-100 text-purple-700{% endif %}
+                                    {% if pedido.tipo_orden == 'retiro' %}bg-blue-100 text-blue-700{% endif %}
+                                    {% if pedido.tipo_orden == 'local' %}bg-gray-100 text-gray-700{% endif %}
+                                ">
+                                    {% if pedido.tipo_orden == 'delivery' %}
+                                        <i class="fas fa-motorcycle"></i> Delivery
+                                    {% elif pedido.tipo_orden == 'retiro' %}
+                                        <i class="fas fa-shopping-bag"></i> Para Retirar
+                                    {% else %}
+                                        <i class="fas fa-store"></i> En Local
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Estado y Total -->
+                    <div class="flex items-center gap-4">
+                        <span class="px-4 py-2 text-sm font-bold rounded-full shadow-sm
+                            {% if pedido.estado == 'confirmado' %}bg-blue-100 text-blue-800{% endif %}
+                            {% if pedido.estado == 'en_preparacion' %}bg-yellow-100 text-yellow-800{% endif %}
+                            {% if pedido.estado == 'listo' %}bg-green-100 text-green-800{% endif %}
+                            {% if pedido.estado == 'en_camino' %}bg-indigo-100 text-indigo-800{% endif %}
+                            {% if pedido.estado == 'entregado' %}bg-green-100 text-green-800{% endif %}
+                            {% if pedido.estado == 'cancelado' %}bg-red-100 text-red-800{% endif %}
+                        ">
+                            {% if pedido.estado == 'confirmado' %}<i class="fas fa-check-circle mr-1"></i>{% endif %}
+                            {% if pedido.estado == 'en_preparacion' %}<i class="fas fa-fire mr-1"></i>{% endif %}
+                            {% if pedido.estado == 'listo' %}<i class="fas fa-check-double mr-1"></i>{% endif %}
+                            {% if pedido.estado == 'en_camino' %}<i class="fas fa-truck mr-1"></i>{% endif %}
+                            {% if pedido.estado == 'entregado' %}<i class="fas fa-box-open mr-1"></i>{% endif %}
+                            {% if pedido.estado == 'cancelado' %}<i class="fas fa-times-circle mr-1"></i>{% endif %}
+                            {{ pedido.get_estado_display }}
+                        </span>
+                        <span class="font-bold text-2xl text-primary">${{ pedido.total|floatformat:0 }}</span>
+                    </div>
+                </div>
+
+                <!-- Body del Pedido (Colapsable) -->
+                <div class="pedido-body">
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                            <!-- Columna Izquierda: Detalles del Pedido -->
+                            <div class="lg:col-span-2 space-y-6">
+                                
+                                <!-- Timeline de Estado -->
+                                <div class="bg-gray-50 rounded-xl p-6">
+                                    <h4 class="text-lg font-bold mb-4 text-gray-800">
+                                        <i class="fas fa-route text-primary mr-2"></i>
+                                        Estado del Pedido
+                                    </h4>
+                                    <div class="space-y-4">
+                                        <!-- Confirmado -->
+                                        <div class="timeline-step">
+                                            <div class="timeline-icon {% if pedido.estado != 'cancelado' %}completed{% endif %}">
+                                                <i class="fas fa-check"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <p class="font-semibold text-gray-800">Confirmado</p>
+                                                {% if pedido.fecha_confirmacion %}
+                                                <p class="text-sm text-gray-500">{{ pedido.fecha_confirmacion|date:"d/m/Y H:i" }}</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- En Preparación -->
+                                        <div class="timeline-step">
+                                            <div class="timeline-icon {% if pedido.estado == 'en_preparacion' %}active{% elif pedido.estado in 'listo,en_camino,entregado' %}completed{% endif %}">
+                                                <i class="fas fa-fire"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <p class="font-semibold text-gray-800">En Preparación</p>
+                                                {% if pedido.fecha_preparacion %}
+                                                <p class="text-sm text-gray-500">{{ pedido.fecha_preparacion|date:"d/m/Y H:i" }}</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Listo -->
+                                        <div class="timeline-step">
+                                            <div class="timeline-icon {% if pedido.estado == 'listo' %}active{% elif pedido.estado in 'en_camino,entregado' %}completed{% endif %}">
+                                                <i class="fas fa-check-double"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <p class="font-semibold text-gray-800">Listo para {% if pedido.tipo_orden == 'delivery' %}Enviar{% else %}Retirar{% endif %}</p>
+                                                {% if pedido.fecha_listo %}
+                                                <p class="text-sm text-gray-500">{{ pedido.fecha_listo|date:"d/m/Y H:i" }}</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- En Camino (solo para delivery) -->
+                                        {% if pedido.tipo_orden == 'delivery' %}
+                                        <div class="timeline-step">
+                                            <div class="timeline-icon {% if pedido.estado == 'en_camino' %}active{% elif pedido.estado == 'entregado' %}completed{% endif %}">
+                                                <i class="fas fa-motorcycle"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <p class="font-semibold text-gray-800">En Camino</p>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <!-- Entregado -->
+                                        <div class="timeline-step">
+                                            <div class="timeline-icon {% if pedido.estado == 'entregado' %}completed{% endif %}">
+                                                <i class="fas fa-star"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <p class="font-semibold text-gray-800">{% if pedido.tipo_orden == 'delivery' %}Entregado{% else %}Completado{% endif %}</p>
+                                                {% if pedido.fecha_entrega %}
+                                                <p class="text-sm text-gray-500">{{ pedido.fecha_entrega|date:"d/m/Y H:i" }}</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Productos -->
+                                <div>
+                                    <h4 class="text-lg font-bold mb-4 text-gray-800">
+                                        <i class="fas fa-shopping-basket text-primary mr-2"></i>
+                                        Productos
+                                    </h4>
+                                    <div class="space-y-3">
+                                        {% for detalle in pedido.detalles.all %}
+                                        <div class="producto-item flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                                            <div class="flex items-center gap-4">
+                                                {% if detalle.producto.imagen %}
+                                                    <img src="{{ detalle.producto.imagen.url }}" alt="{{ detalle.producto.nombre }}" class="w-20 h-20 object-cover rounded-lg shadow-sm">
+                                                {% else %}
+                                                    <div class="w-20 h-20 rounded-lg bg-gray-200 flex items-center justify-center shadow-sm">
+                                                        <i class="fas fa-utensils text-gray-400 text-2xl"></i>
+                                                    </div>
+                                                {% endif %}
+                                                <div>
+                                                    <p class="font-bold text-gray-800 text-lg">{{ detalle.cantidad }}x {{ detalle.producto.nombre }}</p>
+                                                    <p class="text-sm text-gray-500">Precio unitario: ${{ detalle.precio_unitario|floatformat:0 }}</p>
+                                                </div>
+                                            </div>
+                                            <span class="font-bold text-xl text-gray-800">${{ detalle.subtotal|floatformat:0 }}</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+
+                                <!-- Información Adicional -->
+                                {% if pedido.tipo_orden == 'delivery' and pedido.direccion_entrega %}
+                                <div class="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4">
+                                    <h5 class="font-bold text-blue-900 mb-2">
+                                        <i class="fas fa-map-marker-alt mr-2"></i>Dirección de Entrega
+                                    </h5>
+                                    <p class="text-blue-800">{{ pedido.direccion_entrega }}</p>
+                                    {% if pedido.referencia_direccion %}
+                                    <p class="text-sm text-blue-600 mt-1">Ref: {{ pedido.referencia_direccion }}</p>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+
+                                {% if pedido.nombre_referencia_cliente %}
+                                <div class="bg-gray-50 rounded-lg p-4">
+                                    <p class="text-gray-700">
+                                        <i class="fas fa-user mr-2 text-gray-500"></i>
+                                        <span class="font-semibold">Nombre:</span> {{ pedido.nombre_referencia_cliente }}
+                                    </p>
+                                </div>
+                                {% endif %}
+
+                                {% if pedido.notas_cliente %}
+                                <div class="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-4">
+                                    <h5 class="font-bold text-yellow-900 mb-2">
+                                        <i class="fas fa-sticky-note mr-2"></i>Notas del Pedido
+                                    </h5>
+                                    <p class="text-yellow-800">{{ pedido.notas_cliente }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Columna Derecha: Resumen -->
+                            <div>
+                                <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 shadow-sm sticky top-4">
+                                    <h4 class="text-lg font-bold mb-4 text-gray-800">
+                                        <i class="fas fa-receipt text-primary mr-2"></i>
+                                        Resumen
+                                    </h4>
+                                    
+                                    <div class="space-y-3 mb-4">
+                                        <div class="flex justify-between text-gray-700">
+                                            <span>Subtotal:</span>
+                                            <span class="font-semibold">${{ pedido.subtotal|floatformat:0 }}</span>
+                                        </div>
+                                        <div class="flex justify-between text-gray-700">
+                                            <span>Envío:</span>
+                                            <span class="font-semibold">
+                                                {% if pedido.costo_envio > 0 %}
+                                                    ${{ pedido.costo_envio|floatformat:0 }}
+                                                {% else %}
+                                                    <span class="text-green-600">Gratis</span>
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                        <div class="border-t-2 border-gray-300 pt-3 mt-2">
+                                            <div class="flex justify-between text-xl font-bold text-gray-900">
+                                                <span>Total:</span>
+                                                <span class="text-primary">${{ pedido.total|floatformat:0 }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="border-t border-gray-300 pt-4 mt-4">
+                                        <p class="text-sm text-gray-600 mb-3">
+                                            <i class="fas fa-credit-card mr-2 text-gray-500"></i>
+                                            <span class="font-semibold">Método de pago:</span><br>
+                                            <span class="ml-6">{{ pedido.metodo_pago.nombre }}</span>
+                                        </p>
+                                    </div>
+
+                                    <!-- Botones de Acción -->
+                                    <div class="pt-4 mt-4 border-t border-gray-300 space-y-3">
+                                        {% if pedido.reclamo_set.first %}
+                                            <a href="{% url 'mis_reclamos' %}" class="flex items-center justify-center gap-2 w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-3 rounded-lg transition duration-200 shadow-sm">
+                                                <i class="fas fa-eye"></i>
+                                                <span>Ver Reclamo</span>
+                                            </a>
+                                        {% else %}
+                                            {% if pedido.estado in 'entregado,listo,en_camino' %}
+                                            <a href="{% url 'crear_reclamo' pk=pedido.pk %}" class="flex items-center justify-center gap-2 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold px-4 py-3 rounded-lg transition duration-200 shadow-sm">
+                                                <i class="fas fa-exclamation-circle"></i>
+                                                <span>Reportar Problema</span>
+                                            </a>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function togglePedido(headerElement) {
+        // Encuentra el ícono de flecha
+        const chevronIcon = headerElement.querySelector('.chevron-icon');
+        // Encuentra el cuerpo del pedido
+        const pedidoBody = headerElement.nextElementSibling;
+
+        // Toggle de clases
+        if (pedidoBody.classList.contains('expanded')) {
+            pedidoBody.classList.remove('expanded');
+            chevronIcon.classList.remove('rotated');
+        } else {
+            pedidoBody.classList.add('expanded');
+            chevronIcon.classList.add('rotated');
+        }
+    }
+</script>
+{% endblock %}
