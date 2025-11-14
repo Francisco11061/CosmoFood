@@ -37,7 +37,7 @@ def home(request):
         'slides': slides,
         'productos_promocion': productos_promocion
     }
-    return render(request, 'core/home.html', contexto)
+    return render(request, 'core/cliente/home.html', contexto)
 
 
 def catalogo_productos_view(request):
@@ -69,7 +69,7 @@ def catalogo_productos_view(request):
         'busqueda': busqueda,
         'categoria_seleccionada': categoria_id
     }
-    return render(request, 'core/catalogo_productos.html', contexto)
+    return render(request, 'core/cliente/catalogo_productos.html', contexto)
 
 # ========== AUTENTICACIÓN ==========
 
@@ -96,7 +96,7 @@ def registro_view(request):
     else:
         form = RegistroForm()
     
-    return render(request, 'core/registro.html', {'form': form})
+    return render(request, 'core/auth/registro.html', {'form': form})
 
 
 def login_view(request):
@@ -133,7 +133,7 @@ def login_view(request):
     else:
         form = LoginForm()
 
-    return render(request, 'core/login.html', {'form': form})
+    return render(request, 'core/auth/login.html', {'form': form})
 
 def logout_view(request):
     """Vista de cierre de sesión"""
@@ -190,7 +190,7 @@ def recuperar_password_view(request):
     else:
         form = RecuperarPasswordForm()
     
-    return render(request, 'core/recuperar_password.html', {'form': form})
+    return render(request, 'core/auth/recuperar_password.html', {'form': form})
 
 def reset_password_view(request, uidb64, token):
     """Vista para restablecer contraseña con token (HU07)"""
@@ -210,19 +210,19 @@ def reset_password_view(request, uidb64, token):
                 return redirect('login')
         else:
             form = ResetPasswordForm()
-        return render(request, 'core/reset_password.html', {'form': form, 'validlink': True})
+        return render(request, 'core/auth/reset_password.html', {'form': form, 'validlink': True})
     else:
         messages.error(request, 'El enlace de recuperación es inválido o ha expirado.')
         # Es mejor mostrar un mensaje en una página en lugar de redirigir directamente
         # para que el usuario entienda qué pasó.
-        return render(request, 'core/reset_password.html', {'validlink': False})
+        return render(request, 'core/auth/reset_password.html', {'validlink': False})
 
 # ========== PERFIL DE USUARIO ==========
 
 @login_required
 def perfil_view(request):
     """Vista para ver datos personales (HU08)"""
-    return render(request, 'core/perfil.html', {'usuario': request.user})
+    return render(request, 'core/perfil/perfil.html', {'usuario': request.user})
 
 @login_required
 def editar_perfil_view(request):
@@ -238,7 +238,7 @@ def editar_perfil_view(request):
     else:
         form = PerfilForm(instance=request.user)
     
-    return render(request, 'core/editar_perfil.html', {'form': form})
+    return render(request, 'core/perfil/editar_perfil.html', {'form': form})
 
 # ========== PEDIDOS DE USUARIO ==========
 
@@ -250,7 +250,7 @@ def mis_pedidos_view(request):
     contexto = {
         'pedidos': pedidos
     }
-    return render(request, 'core/mis_pedidos.html', contexto)
+    return render(request, 'core/cliente/mis_pedidos.html', contexto)
 
 # ========== CARRITO DE COMPRAS ==========
 
@@ -271,7 +271,7 @@ def ver_carrito_view(request):
         'carrito': carrito,
         'items': items
     }
-    return render(request, 'core/carrito.html', contexto)
+    return render(request, 'core/cliente/carrito.html', contexto)
 
 @login_required
 def agregar_al_carrito_view(request):
@@ -1163,7 +1163,7 @@ def repartidor_pedidos_view(request):
         'titulo': 'Mis Entregas',
     }
 
-    return render(request, 'core/repartidor_pedidos.html', contexto)
+    return render(request, 'core/repartidor/repartidor_pedidos.html', contexto)
 	#Logica del pago por mientras 
 @login_required
 @transaction.atomic  # Importante: importa 'transaction' de django.db
@@ -1249,7 +1249,7 @@ def checkout_view(request):
             'tipos_de_orden': Pedido.TIPO_ORDEN_CHOICES,
             'titulo': 'Finalizar Compra'
         }
-        return render(request, 'core/checkout.html', contexto)
+        return render(request, 'core/cliente/checkout.html', contexto)
 
 
 # --- Boleta Cliente ---
@@ -1262,7 +1262,7 @@ def pedido_confirmado_view(request, pk):
         'pedido': pedido,
         'titulo': 'Pedido Confirmado'
     }
-    return render(request, 'core/pedido_confirmado.html', contexto)
+    return render(request, 'core/cliente/pedido_confirmado.html', contexto)
 
 # Logica del reclamo
 @login_required
@@ -1293,7 +1293,7 @@ def crear_reclamo_view(request, pk):
         'pedido': pedido,
         'titulo': 'Hacer Reclamo'
     }
-    return render(request, 'core/crear_reclamo.html', contexto)
+    return render(request, 'core/cliente/crear_reclamo.html', contexto)
 #ver reclamos
 @login_required
 def mis_reclamos_view(request):
@@ -1306,7 +1306,7 @@ def mis_reclamos_view(request):
         'reclamos': reclamos,
         'titulo': 'Mis Reclamos'
     }
-    return render(request, 'core/mis_reclamos.html', contexto)
+    return render(request, 'core/cliente/mis_reclamos.html', contexto)
 
 #vista del cajero
 # ========== PUNTO DE VENTA CAJERO (HU24, HU25) ==========
@@ -1395,7 +1395,7 @@ def pos_cajero_view(request):
             'categorias_pos': categorias_pos,
             'titulo': 'Punto de Venta'
         }
-        return render(request, 'core/pos_cajero.html', contexto)
+        return render(request, 'core/cajero/pos_cajero.html', contexto)
 # ========== VISTA DE COCINA (HU26, HU27) ==========
 
 @login_required
@@ -1479,4 +1479,4 @@ def cocina_view(request):
         'titulo': 'Panel de Cocina',
     }
 
-    return render(request, 'core/cocina.html', contexto)
+    return render(request, 'core/cocina/cocina.html', contexto)
