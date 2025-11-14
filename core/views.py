@@ -406,27 +406,36 @@ def admin_dashboard_view(request):
         estado__in=['confirmado', 'en_preparacion']
     ).order_by('-fecha_creacion')[:5] # Los 5 más recientes
 
-    # --- Cálculo para el Gráfico "Ventas de la Semana" ---
+    # --- Cálculo para el Gráfico "Ventas de la Semana" (CORREGIDO: Empieza en Lunes) ---
     # Diccionario para traducir días al español
     dias_espanol = {
         'Mon': 'Lun', 'Tue': 'Mar', 'Wed': 'Mié', 
         'Thu': 'Jue', 'Fri': 'Vie', 'Sat': 'Sáb', 'Sun': 'Dom'
     }
     
+    # Calcular el lunes de la semana actual
+    dias_desde_lunes = today.weekday()  # 0=Lunes, 6=Domingo
+    lunes_semana_actual = today - timedelta(days=dias_desde_lunes)
+    
+    # Generar los 7 días desde el lunes hasta el domingo
     dias = []
     ventas_por_dia = []
-    for i in range(7):
-        dia = today - timedelta(days=i)
+    
+    for i in range(7):  # De lunes (0) a domingo (6)
+        dia = lunes_semana_actual + timedelta(days=i)
         dia_ingles = dia.strftime('%a')  # Obtiene día en inglés (Mon, Tue, etc.)
         dia_espanol = dias_espanol.get(dia_ingles, dia_ingles)  # Traduce al español
         dias.append(dia_espanol)
+        
+        # Consultar ventas de ese día
         ventas_dia = Pedido.objects.filter(
             fecha_creacion__date=dia,
             estado__in=['confirmado', 'en_preparacion', 'listo', 'en_camino', 'entregado']
         ).aggregate(total=Sum('total'))['total'] or 0
+        
         ventas_por_dia.append(float(ventas_dia))
-    dias.reverse()
-    ventas_por_dia.reverse()
+    
+    # Ya NO necesitas .reverse() porque ya están en orden correcto (Lun-Dom)
 
     detalles_hoy = DetallePedido.objects.filter(
         pedido__fecha_creacion__date=today,
@@ -456,8 +465,6 @@ def admin_dashboard_view(request):
     }
 
     return render(request, 'core/admin/dashboard.html', contexto)
-
-
 
 # ========== GESTIÓN DE PRODUCTOS (ADMIN) ==========
 

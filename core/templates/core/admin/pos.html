@@ -244,7 +244,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- Toast Container -->
 <div class="toast-container" id="toast-container"></div>
 
 <div class="row">
@@ -302,7 +301,7 @@
     </div>
 
     <div class="col-lg-5 mb-4">
-        <div class="card table-card sticky-top" style="top: 80px; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(10px);">
+        <div class="card table-card sticky-top" style="top: 80px; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(10px); z-index: 1;">
             <div class="card-header bg-white border-0 py-3">
                 <h5 class="card-title mb-0"><i class="fas fa-receipt text-primary me-2"></i>Pedido Actual</h5>
             </div>
@@ -533,7 +532,7 @@
         const search = els.search.value.toLowerCase();
         const category = els.filter.querySelector('input:checked')?.value || 'all';
         els.list.querySelectorAll('.product-container').forEach(c => {
-            const name = c.getAttribute('data-name'), cat = c.getAttribute('data-category');
+            const name = c.getAttribute('data-name'), cat = c.getAttribute('data-Gategory');
             c.style.display = (name?.includes(search) && (category === 'all' || cat === category)) ? '' : 'none';
         });
     }
