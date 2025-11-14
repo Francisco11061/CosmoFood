@@ -1,580 +1,326 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ titulo }} - CosmoFood</title>
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        :root {
-            --primary-orange: #ff6b35;
-            --secondary-orange: #ff8c42;
-        }
+{% extends 'core/base_roles.html' %}
 
-        body {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+{% block title %}{{ titulo }}{% endblock %}
 
-        /* Navbar Superior con Fondo Naranja */
-        .staff-navbar {
-            background: linear-gradient(135deg, var(--primary-orange) 0%, var(--secondary-orange) 100%);
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-            padding: 1rem 0;
-            margin-bottom: 2rem;
-        }
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
 
-        .staff-navbar .navbar-brand {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: white !important;
-        }
+    /* Estilos del Repartidor */
+    .repartidor-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
 
-        .user-avatar {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            background: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--primary-orange);
-            font-weight: bold;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        }
+    .stats-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
 
-        .user-avatar:hover {
-            transform: scale(1.1);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+    }
 
-        .dropdown-menu {
-            border: none;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            border-radius: 12px;
-            margin-top: 0.5rem;
-        }
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
 
-        .dropdown-item {
-            padding: 0.75rem 1.25rem;
-            transition: all 0.3s;
-        }
+    .stat-card.warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
 
-        .dropdown-item:hover {
-            background: linear-gradient(135deg, var(--primary-orange), var(--secondary-orange));
-            color: white;
-        }
+    .stat-card.success {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
 
-        .dropdown-item i {
-            width: 20px;
-        }
+    .stat-card h3 {
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
 
-        /* Estilos del Repartidor */
+    .stat-card .number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .pedidos-section {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        padding: 25px;
+        margin-bottom: 30px;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #333;
+        margin: 0;
+    }
+
+    .pedido-card {
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+    }
+
+    .pedido-card:hover {
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .pedido-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .pedido-numero {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .badge {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-listo {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .badge-en_camino {
+        background: #e9d5ff;
+        color: #6b21a8;
+    }
+
+    .badge-entregado {
+        background: #d1fae5;
+        color: #047857;
+    }
+
+    .pedido-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: start;
+        gap: 10px;
+    }
+
+    .info-icon {
+        color: #667eea;
+        font-size: 1.2rem;
+        margin-top: 2px;
+    }
+
+    .info-content {
+        flex: 1;
+    }
+
+    .info-label {
+        font-size: 0.85rem;
+        color: #666;
+        font-weight: 500;
+        margin-bottom: 3px;
+    }
+
+    .info-value {
+        font-size: 1rem;
+        color: #333;
+        font-weight: 500;
+    }
+
+    .productos-list {
+        background: #f9fafb;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .productos-list h4 {
+        font-size: 1rem;
+        margin-bottom: 10px;
+        color: #666;
+    }
+
+    .producto-item {
+        padding: 8px 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .producto-item:last-child {
+        border-bottom: none;
+    }
+
+    .producto-cantidad {
+        font-weight: bold;
+        color: #667eea;
+        margin-right: 8px;
+    }
+
+    .acciones-pedido {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+    }
+
+    .btn-camino {
+        background: #8b5cf6;
+        color: white;
+    }
+
+    .btn-camino:hover {
+        background: #7c3aed;
+    }
+
+    .btn-entregado {
+        background: #059669;
+        color: white;
+    }
+
+    .btn-entregado:hover {
+        background: #047857;
+    }
+
+    .no-pedidos {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+    }
+
+    .no-pedidos i {
+        font-size: 3rem;
+        color: #ddd;
+        margin-bottom: 15px;
+    }
+
+    @media (max-width: 768px) {
         .repartidor-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .stats-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: transform 0.2s;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .stat-card.warning {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
-
-        .stat-card.success {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        }
-
-        .stat-card h3 {
-            font-size: 0.9rem;
-            margin-bottom: 10px;
-            opacity: 0.9;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .stat-card .number {
-            font-size: 2.5rem;
-            font-weight: bold;
-            margin: 0;
-        }
-
-        .pedidos-section {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            padding: 25px;
-            margin-bottom: 30px;
-        }
-
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-
-        .section-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #333;
-            margin: 0;
-        }
-
-        .pedido-card {
-            background: #fff;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            transition: all 0.3s ease;
-        }
-
-        .pedido-card:hover {
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            transform: translateY(-2px);
+            padding: 10px;
         }
 
         .pedido-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .pedido-numero {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .badge-listo {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .badge-en_camino {
-            background: #e9d5ff;
-            color: #6b21a8;
-        }
-
-        .badge-entregado {
-            background: #d1fae5;
-            color: #047857;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
         }
 
         .pedido-info {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .info-item {
-            display: flex;
-            align-items: start;
-            gap: 10px;
-        }
-
-        .info-icon {
-            color: #667eea;
-            font-size: 1.2rem;
-            margin-top: 2px;
-        }
-
-        .info-content {
-            flex: 1;
-        }
-
-        .info-label {
-            font-size: 0.85rem;
-            color: #666;
-            font-weight: 500;
-            margin-bottom: 3px;
-        }
-
-        .info-value {
-            font-size: 1rem;
-            color: #333;
-            font-weight: 500;
-        }
-
-        .productos-list {
-            background: #f9fafb;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-
-        .productos-list h4 {
-            font-size: 1rem;
-            margin-bottom: 10px;
-            color: #666;
-        }
-
-        .producto-item {
-            padding: 8px 0;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .producto-item:last-child {
-            border-bottom: none;
-        }
-
-        .producto-cantidad {
-            font-weight: bold;
-            color: #667eea;
-            margin-right: 8px;
+            grid-template-columns: 1fr;
         }
 
         .acciones-pedido {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
+            flex-direction: column;
         }
 
         .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-block;
-            text-align: center;
+            width: 100%;
         }
+    }
+</style>
+{% endblock %}
 
-        .btn-camino {
-            background: #8b5cf6;
-            color: white;
-        }
+{% block content %}
+<!-- Contenido Principal -->
+<div class="repartidor-container">
+    <h1 class="section-title" style="margin-bottom: 30px;">
+        <i class="fas fa-shipping-fast"></i> {{ titulo }}
+    </h1>
 
-        .btn-camino:hover {
-            background: #7c3aed;
-        }
-
-        .btn-entregado {
-            background: #059669;
-            color: white;
-        }
-
-        .btn-entregado:hover {
-            background: #047857;
-        }
-
-        .no-pedidos {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-
-        .no-pedidos i {
-            font-size: 3rem;
-            color: #ddd;
-            margin-bottom: 15px;
-        }
-
-        @media (max-width: 768px) {
-            .repartidor-container {
-                padding: 10px;
-            }
-
-            .pedido-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-            }
-
-            .pedido-info {
-                grid-template-columns: 1fr;
-            }
-
-            .acciones-pedido {
-                flex-direction: column;
-            }
-
-            .btn {
-                width: 100%;
-            }
-        }
-    </style>
-</head>
-<body>
-    <!-- Navbar Superior con Fondo Naranja -->
-    <nav class="navbar staff-navbar">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'home' %}">
-                <i class="fas fa-utensils me-2"></i>CosmoFood
-            </a>
-            
-            <!-- Solo Avatar con Dropdown -->
-            <div class="dropdown">
-                <div class="user-avatar" data-bs-toggle="dropdown" aria-expanded="false">
-                    {{ user.first_name.0|default:user.username.0|upper }}
-                </div>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li>
-                        <a class="dropdown-item" href="{% url 'perfil' %}">
-                            <i class="fas fa-user me-2"></i>Mi Perfil
-                        </a>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <a class="dropdown-item text-danger" href="{% url 'logout' %}">
-                            <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
-                        </a>
-                    </li>
-                </ul>
-            </div>
+    <!-- Estadísticas del Repartidor -->
+    <div class="stats-cards">
+        <div class="stat-card">
+            <h3>Pedidos Asignados</h3>
+            <p class="number">{{ total_asignados }}</p>
         </div>
-    </nav>
-
-    <!-- Mensajes de Django -->
-    <div class="container">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {% if message.tags == 'error' %}
-                        <i class="fas fa-exclamation-circle me-2"></i>
-                    {% elif message.tags == 'success' %}
-                        <i class="fas fa-check-circle me-2"></i>
-                    {% elif message.tags == 'warning' %}
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                    {% elif message.tags == 'info' %}
-                        <i class="fas fa-info-circle me-2"></i>
-                    {% endif %}
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
+        <div class="stat-card warning">
+            <h3>En Camino</h3>
+            <p class="number">{{ total_en_camino }}</p>
+        </div>
+        <div class="stat-card success">
+            <h3>Entregados Hoy</h3>
+            <p class="number">{{ total_entregados_hoy }}</p>
+        </div>
     </div>
 
-    <!-- Contenido Principal -->
-    <div class="repartidor-container">
-        <h1 class="section-title" style="margin-bottom: 30px;">
-            <i class="fas fa-shipping-fast"></i> {{ titulo }}
-        </h1>
-
-        <!-- Estadísticas del Repartidor -->
-        <div class="stats-cards">
-            <div class="stat-card">
-                <h3>Pedidos Asignados</h3>
-                <p class="number">{{ total_asignados }}</p>
-            </div>
-            <div class="stat-card warning">
-                <h3>En Camino</h3>
-                <p class="number">{{ total_en_camino }}</p>
-            </div>
-            <div class="stat-card success">
-                <h3>Entregados Hoy</h3>
-                <p class="number">{{ total_entregados_hoy }}</p>
-            </div>
+    <!-- Pedidos Pendientes/Activos -->
+    <div class="pedidos-section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="fas fa-tasks"></i> Pedidos Activos
+            </h2>
         </div>
 
-        <!-- Pedidos Pendientes/Activos -->
-        <div class="pedidos-section">
-            <div class="section-header">
-                <h2 class="section-title">
-                    <i class="fas fa-tasks"></i> Pedidos Activos
-                </h2>
-            </div>
-
-            {% if pedidos_asignados %}
-                {% for pedido in pedidos_asignados %}
-                <div class="pedido-card">
-                    <!-- Encabezado del Pedido -->
-                    <div class="pedido-header">
-                        <div class="pedido-numero">
-                            Pedido #{{ pedido.numero_pedido }}
-                        </div>
-                        <span class="badge badge-{{ pedido.estado }}">
-                            {{ pedido.get_estado_display }}
-                        </span>
-                    </div>
-
-                    <!-- Información del Pedido -->
-                    <div class="pedido-info">
-                        <!-- Cliente -->
-                        <div class="info-item">
-                            <i class="fas fa-user info-icon"></i>
-                            <div class="info-content">
-                                <div class="info-label">Cliente</div>
-                                <div class="info-value">
-                                    {% if pedido.nombre_referencia_cliente %}
-                                        {{ pedido.nombre_referencia_cliente }}
-                                    {% elif pedido.cliente %}
-                                        {{ pedido.cliente.get_full_name|default:pedido.cliente.username }}
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Teléfono -->
-                        <div class="info-item">
-                            <i class="fas fa-phone info-icon"></i>
-                            <div class="info-content">
-                                <div class="info-label">Teléfono</div>
-                                <div class="info-value">
-                                    {% if pedido.cliente and pedido.cliente.telefono %}
-                                        <a href="tel:{{ pedido.cliente.telefono }}" style="color: #667eea; text-decoration: none;">
-                                            {{ pedido.cliente.telefono }}
-                                        </a>
-                                    {% else %}
-                                        No disponible
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Dirección -->
-                        <div class="info-item" style="grid-column: 1 / -1;">
-                            <i class="fas fa-map-marker-alt info-icon"></i>
-                            <div class="info-content">
-                                <div class="info-label">Dirección de Entrega</div>
-                                <div class="info-value">
-                                    {% if pedido.direccion_entrega %}
-                                        {{ pedido.direccion_entrega }}
-                                        {% if pedido.referencia_direccion %}
-                                            <br><small style="color: #666;">Ref: {{ pedido.referencia_direccion }}</small>
-                                        {% endif %}
-                                    {% else %}
-                                        {% if pedido.tipo_orden == 'retiro' %}
-                                            <strong>Para Retirar en Local</strong>
-                                        {% elif pedido.tipo_orden == 'local' %}
-                                            <strong>Para Consumir en Local</strong>
-                                        {% else %}
-                                            No especificada
-                                        {% endif %}
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Total -->
-                        <div class="info-item">
-                            <i class="fas fa-dollar-sign info-icon"></i>
-                            <div class="info-content">
-                                <div class="info-label">Total</div>
-                                <div class="info-value">${{ pedido.total|floatformat:0 }}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Productos del Pedido -->
-                    <div class="productos-list">
-                        <h4><i class="fas fa-box"></i> Productos:</h4>
-                        {% for detalle in pedido.detalles.all %}
-                        <div class="producto-item">
-                            <span class="producto-cantidad">{{ detalle.cantidad }}x</span>
-                            <span>{{ detalle.producto.nombre }}</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-
-                    <!-- Notas del Cliente -->
-                    {% if pedido.notas_cliente %}
-                    <div style="background: #fef3c7; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
-                        <strong><i class="fas fa-comment"></i> Nota del cliente:</strong>
-                        <p style="margin: 5px 0 0 0;">{{ pedido.notas_cliente }}</p>
-                    </div>
-                    {% endif %}
-
-                    <!-- Acciones de Cambio de Estado -->
-                    <div class="acciones-pedido">
-                        <form method="post" style="display: inline;">
-                            {% csrf_token %}
-                            <input type="hidden" name="pedido_id" value="{{ pedido.id }}">
-                            
-                            {% if pedido.estado == 'listo' %}
-                                <button type="submit" name="nuevo_estado" value="en_camino" class="btn btn-camino">
-                                    <i class="fas fa-shipping-fast"></i> Iniciar Entrega
-                                </button>
-                            {% endif %}
-
-                            {% if pedido.estado == 'en_camino' %}
-                                <button type="submit" name="nuevo_estado" value="entregado" class="btn btn-entregado">
-                                    <i class="fas fa-check-double"></i> Marcar Entregado
-                                </button>
-                            {% endif %}
-                        </form>
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="no-pedidos">
-                    <i class="fas fa-inbox"></i>
-                    <h3>No tienes pedidos asignados en este momento</h3>
-                    <p>Los nuevos pedidos aparecerán aquí automáticamente</p>
-                </div>
-            {% endif %}
-        </div>
-
-        <!-- Pedidos Entregados Recientemente (últimas 24h) -->
-        {% if pedidos_entregados_recientes %}
-        <div class="pedidos-section">
-            <div class="section-header">
-                <h2 class="section-title">
-                    <i class="fas fa-check-circle"></i> Entregas Recientes (24h)
-                </h2>
-            </div>
-
-            {% for pedido in pedidos_entregados_recientes %}
-            <div class="pedido-card" style="opacity: 0.8;">
+        {% if pedidos_asignados %}
+            {% for pedido in pedidos_asignados %}
+            <div class="pedido-card">
+                <!-- Encabezado del Pedido -->
                 <div class="pedido-header">
                     <div class="pedido-numero">
                         Pedido #{{ pedido.numero_pedido }}
                     </div>
-                    <span class="badge badge-entregado">
-                        <i class="fas fa-check"></i> Entregado
+                    <span class="badge badge-{{ pedido.estado }}">
+                        {{ pedido.get_estado_display }}
                     </span>
                 </div>
 
+                <!-- Información del Pedido -->
                 <div class="pedido-info">
+                    <!-- Cliente -->
                     <div class="info-item">
                         <i class="fas fa-user info-icon"></i>
                         <div class="info-content">
@@ -591,14 +337,48 @@
                         </div>
                     </div>
 
+                    <!-- Teléfono -->
                     <div class="info-item">
-                        <i class="fas fa-clock info-icon"></i>
+                        <i class="fas fa-phone info-icon"></i>
                         <div class="info-content">
-                            <div class="info-label">Entregado</div>
-                            <div class="info-value">{{ pedido.fecha_entrega|date:"d/m/Y H:i" }}</div>
+                            <div class="info-label">Teléfono</div>
+                            <div class="info-value">
+                                {% if pedido.cliente and pedido.cliente.telefono %}
+                                    <a href="tel:{{ pedido.cliente.telefono }}" style="color: #667eea; text-decoration: none;">
+                                        {{ pedido.cliente.telefono }}
+                                    </a>
+                                {% else %}
+                                    No disponible
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
 
+                    <!-- Dirección -->
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <i class="fas fa-map-marker-alt info-icon"></i>
+                        <div class="info-content">
+                            <div class="info-label">Dirección de Entrega</div>
+                            <div class="info-value">
+                                {% if pedido.direccion_entrega %}
+                                    {{ pedido.direccion_entrega }}
+                                    {% if pedido.referencia_direccion %}
+                                        <br><small style="color: #666;">Ref: {{ pedido.referencia_direccion }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    {% if pedido.tipo_orden == 'retiro' %}
+                                        <strong>Para Retirar en Local</strong>
+                                    {% elif pedido.tipo_orden == 'local' %}
+                                        <strong>Para Consumir en Local</strong>
+                                    {% else %}
+                                        No especificada
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Total -->
                     <div class="info-item">
                         <i class="fas fa-dollar-sign info-icon"></i>
                         <div class="info-content">
@@ -607,13 +387,112 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Productos del Pedido -->
+                <div class="productos-list">
+                    <h4><i class="fas fa-box"></i> Productos:</h4>
+                    {% for detalle in pedido.detalles.all %}
+                    <div class="producto-item">
+                        <span class="producto-cantidad">{{ detalle.cantidad }}x</span>
+                        <span>{{ detalle.producto.nombre }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Notas del Cliente -->
+                {% if pedido.notas_cliente %}
+                <div style="background: #fef3c7; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                    <strong><i class="fas fa-comment"></i> Nota del cliente:</strong>
+                    <p style="margin: 5px 0 0 0;">{{ pedido.notas_cliente }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Acciones de Cambio de Estado -->
+                <div class="acciones-pedido">
+                    <form method="post" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="pedido_id" value="{{ pedido.id }}">
+                        
+                        {% if pedido.estado == 'listo' %}
+                            <button type="submit" name="nuevo_estado" value="en_camino" class="btn btn-camino">
+                                <i class="fas fa-shipping-fast"></i> Iniciar Entrega
+                            </button>
+                        {% endif %}
+
+                        {% if pedido.estado == 'en_camino' %}
+                            <button type="submit" name="nuevo_estado" value="entregado" class="btn btn-entregado">
+                                <i class="fas fa-check-double"></i> Marcar Entregado
+                            </button>
+                        {% endif %}
+                    </form>
+                </div>
             </div>
             {% endfor %}
-        </div>
+        {% else %}
+            <div class="no-pedidos">
+                <i class="fas fa-inbox"></i>
+                <h3>No tienes pedidos asignados en este momento</h3>
+                <p>Los nuevos pedidos aparecerán aquí automáticamente</p>
+            </div>
         {% endif %}
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+    <!-- Pedidos Entregados Recientemente (últimas 24h) -->
+    {% if pedidos_entregados_recientes %}
+    <div class="pedidos-section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="fas fa-check-circle"></i> Entregas Recientes (24h)
+            </h2>
+        </div>
+
+        {% for pedido in pedidos_entregados_recientes %}
+        <div class="pedido-card" style="opacity: 0.8;">
+            <div class="pedido-header">
+                <div class="pedido-numero">
+                    Pedido #{{ pedido.numero_pedido }}
+                </div>
+                <span class="badge badge-entregado">
+                    <i class="fas fa-check"></i> Entregado
+                </span>
+            </div>
+
+            <div class="pedido-info">
+                <div class="info-item">
+                    <i class="fas fa-user info-icon"></i>
+                    <div class="info-content">
+                        <div class="info-label">Cliente</div>
+                        <div class="info-value">
+                            {% if pedido.nombre_referencia_cliente %}
+                                {{ pedido.nombre_referencia_cliente %}
+                            {% elif pedido.cliente %}
+                                {{ pedido.cliente.get_full_name|default:pedido.cliente.username }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <i class="fas fa-clock info-icon"></i>
+                    <div class="info-content">
+                        <div class="info-label">Entregado</div>
+                        <div class="info-value">{{ pedido.fecha_entrega|date:"d/m/Y H:i" }}</div>
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <i class="fas fa-dollar-sign info-icon"></i>
+                    <div class="info-content">
+                        <div class="info-label">Total</div>
+                        <div class="info-value">${{ pedido.total|floatformat:0 }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

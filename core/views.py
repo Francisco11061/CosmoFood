@@ -620,7 +620,7 @@ def admin_producto_desactivar(request, pk):
 @login_required
 def admin_pedidos_lista_view(request):
     """Vista para que el admin vea y filtre todos los pedidos."""
-    if request.user.rol != 'administrador':
+    if request.user.rol not in ['administrador', 'cajero']:
         messages.error(request, 'No tienes permisos para acceder aquí.')
         return redirect('home')
 
@@ -652,7 +652,7 @@ def admin_pedidos_lista_view(request):
 @login_required
 def admin_pedido_detalle_view(request, pk): # Renombramos pk a pk_pedido para claridad
     """Vista para que el admin vea el detalle de un pedido, cambie su estado Y ASIGNE REPARTIDOR.""" # Docstring actualizado
-    if request.user.rol != 'administrador':
+    if request.user.rol not in ['administrador', 'cajero']:
         messages.error(request, 'No tienes permisos para acceder aquí.')
         return redirect('admin_pedidos_lista')
 
@@ -1402,7 +1402,7 @@ def pos_cajero_view(request):
             'categorias_pos': categorias_pos,
             'titulo': 'Punto de Venta'
         }
-        return render(request, 'core/cajero/pos_cajero.html', contexto)
+        return render(request, 'core/admin/pos.html', contexto)
 # ========== VISTA DE COCINA (HU26, HU27) ==========
 
 @login_required
