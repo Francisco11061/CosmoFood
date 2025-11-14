@@ -167,7 +167,7 @@
                                 <!-- Precio y botón -->
                                 <div class="flex items-center justify-between">
                                     <div class="text-2xl font-bold text-primary">
-                                        ${{ producto.precio }}
+                                        ${{ producto.precio |floatformat:0}}
                                     </div>
                                     {% if user.is_authenticated %}
                                     <form method="POST" action="{% url 'agregar_al_carrito' %}" class="inline">

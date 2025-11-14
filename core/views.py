@@ -773,7 +773,7 @@ def pos_view(request):
                     nombre_referencia_cliente=nombre_referencia, # <-- GUARDA NOMBRE REFERENCIA
                     metodo_pago=metodo_pago_obj,
                     tipo_orden='local',                       # Tipo de orden para POS
-                    estado='en_preparacion',                  # <-- ESTADO INICIAL CORRECTO
+                    estado='confirmado',                  # <-- ESTADO INICIAL CORRECTO
                     subtotal=total_venta,                     # Asume que el total JS es el subtotal
                     costo_envio=0,                            # Sin costo de envío para POS
                     total=total_venta,                        # Total igual a subtotal
@@ -1357,7 +1357,7 @@ def pos_cajero_view(request):
                     nombre_referencia_cliente=nombre_referencia,
                     metodo_pago=metodo_pago_obj,
                     tipo_orden='local',
-                    estado='en_preparacion',
+                    estado='confirmado',
                     subtotal=total_venta,
                     costo_envio=0,
                     total=total_venta,
