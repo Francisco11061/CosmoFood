@@ -161,8 +161,8 @@ class Pedido(models.Model):
       # Si el usuario se elimina (on_delete=models.SET_NULL), el campo cliente queda Nulo. (CAMBIADO)
       # related_name='pedidos' permite acceder desde el usuario a todos sus pedidos:
       # usuario.pedidos.all()
-      cliente = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, related_name='pedidos') # <-- CAMBIO 1
-      repartidor = models.ForeignKey(Repartidor, on_delete=models.SET_NULL,null=True, blank=True) # Añadido blank=True
+      cliente = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, related_name='pedidos') 
+      repartidor = models.ForeignKey(Repartidor, on_delete=models.SET_NULL,null=True, blank=True, related_name='pedidos_asignados') 
       metodo_pago = models.ForeignKey(MetodoPago, on_delete=models.PROTECT)
 
       numero_pedido = models.CharField(max_length=20,unique=True, editable=False) # Editable=False es más seguro

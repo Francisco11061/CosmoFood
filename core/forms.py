@@ -204,107 +204,84 @@ class ProductoForm(forms.ModelForm):
                 'en_promocion': forms.CheckboxInput(attrs={'class': TAILWIND_CHECKBOX_CLASSES}),
             }
 
-class RepartidorForm(forms.Form):
-    username = forms.CharField(
-        label='Nombre de Usuario', required=True,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: juanito_delivery'}) 
-    )
+# (Mantén tus clases de Tailwind al inicio del archivo,
+# donde ya las tienes)
+# TAILWIND_INPUT_CLASSES = 'w-full ...'
+# TAILWIND_CHECKBOX_CLASSES = 'h-4 w-4 ...'
+
+
+# --- Nuevo FORM PARA EL REPARTIDORFORM ---
+
+# 1. Formulario para los datos del MODELO USUARIO
+class RepartidorUserForm(forms.ModelForm):
+    class Meta:
+        model = Usuario
+        fields = ['username', 'email', 'first_name', 'last_name', 'telefono']
+        labels = {
+            'first_name': 'Nombres',
+            'last_name': 'Apellidos',
+        }
+        widgets = {
+            'username': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'placeholder': 'nombre_de_usuario'}),
+            'email': forms.EmailInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'placeholder': 'correo@ejemplo.com'}),
+            'first_name': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
+            'last_name': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
+            'telefono': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'placeholder': '+569...'}),
+        }
+
+class RepartidorProfileForm(forms.ModelForm):
+    class Meta:
+        model = Repartidor
+        fields = ['vehiculo', 'placa_vehiculo', 'disponible']
+        labels = {
+            'placa_vehiculo': 'Placa Patente',
+            'disponible': 'Disponible para entregas'
+        }
+        widgets = {
+            'vehiculo': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'placeholder': 'Ej: Moto Honda CB190R'}),
+            'placa_vehiculo': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'placeholder': 'Ej: ABCD12'}),
+            'disponible': forms.CheckboxInput(attrs={'class': TAILWIND_CHECKBOX_CLASSES + ' ml-2'}),
+        }
+
+class RepartidorCreateForm(UserCreationForm):
+    """
+    Formulario para CREAR un nuevo usuario Repartidor (con contraseña).
+    """
     email = forms.EmailField(
-        label='Correo Electrónico', required=True,
-        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'correo@ejemplo.com'}) 
+        required=True, label='Correo Electrónico',
+        widget=forms.EmailInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'placeholder': 'tucorreo@ejemplo.com'})
     )
     first_name = forms.CharField(
-        label='Nombres', required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control'}) 
+        required=True, label='Nombres',
+        widget=forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'placeholder': 'Ingresa su nombre'})
     )
     last_name = forms.CharField(
-        label='Apellidos', required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control'}) 
-    )
-    telefono = forms.CharField(
-        label='Teléfono', required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+569...'}) 
-    )
-    # Campos para contraseña
-    password = forms.CharField(
-        label='Contraseña', required=False,
-        widget=forms.PasswordInput(attrs={'class': 'form-control'}), 
-        help_text="Dejar en blanco para no cambiar la contraseña existente."
-    )
-    password_confirm = forms.CharField(
-        label='Confirmar Contraseña', required=False,
-        widget=forms.PasswordInput(attrs={'class': 'form-control'})
+        required=True, label='Apellidos',
+        widget=forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'placeholder': 'Ingresa su apellido'})
     )
 
-    # Campos del Modelo Repartidor
-    vehiculo = forms.CharField(
-        label='Vehículo', required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Moto Honda CB190R'})
-    )
-    placa_vehiculo = forms.CharField(
-        label='Placa Patente', required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: ABCD12'}) 
-    )
-    disponible = forms.BooleanField(
-        label='Disponible para entregas', required=False, initial=True,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}) 
-    )
+    class Meta:
+        model = Usuario
+        fields = ['username', 'email', 'first_name', 'last_name', 'password1', 'password2']
+        widgets = {
+            'username': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'placeholder': 'Nombre de usuario'})
+        }
 
-    # Constructor para manejar edición
     def __init__(self, *args, **kwargs):
-        instance_usuario = kwargs.pop('instance', None)
-        instance_perfil = kwargs.pop('instance_perfil', None)
         super().__init__(*args, **kwargs)
+        self.fields['password1'].widget.attrs.update({
+            'class': TAILWIND_INPUT_CLASSES, 
+            'placeholder': 'Contraseña'
+        })
+        self.fields['password2'].widget.attrs.update({
+            'class': TAILWIND_INPUT_CLASSES,
+            'placeholder': 'Confirmar contraseña'
+        })
 
-        if instance_usuario: # Editando
-            self.fields['username'].initial = instance_usuario.username
-            self.fields['username'].widget.attrs['readonly'] = True
-            self.fields['email'].initial = instance_usuario.email
-            self.fields['first_name'].initial = instance_usuario.first_name
-            self.fields['last_name'].initial = instance_usuario.last_name
-            self.fields['telefono'].initial = instance_usuario.telefono
-            self.fields['password'].required = False
-            self.fields['password_confirm'].required = False
-
-            if instance_perfil:
-                self.fields['vehiculo'].initial = instance_perfil.vehiculo
-                self.fields['placa_vehiculo'].initial = instance_perfil.placa_vehiculo
-                self.fields['disponible'].initial = instance_perfil.disponible
-        else: # Creando
-             self.fields['password'].required = True
-             self.fields['password_confirm'].required = True
-
-    # Validación contraseñas
-    def clean(self):
-        cleaned_data = super().clean()
-        password = cleaned_data.get("password")
-        password_confirm = cleaned_data.get("password_confirm")
-        if password and password != password_confirm:
-            self.add_error('password_confirm', "Las contraseñas no coinciden.")
-        return cleaned_data
-
-    # Validación username único (al crear)
-    def clean_username(self):
-        username = self.cleaned_data['username']
-        if not self.initial and Usuario.objects.filter(username=username).exists():
-            raise forms.ValidationError("Este nombre de usuario ya está en uso.")
-        return username
-
-    # Validación email único
-    def clean_email(self):
-        email = self.cleaned_data['email']
-        username = self.cleaned_data.get('username')
-        query = Usuario.objects.filter(email=email)
-        if self.initial:
-            query = query.exclude(username=username)
-        if query.exists():
-             raise forms.ValidationError("Este correo electrónico ya está registrado por otro usuario.")
-        return email
 
 class ReclamoForm(forms.ModelForm):
     class Meta:
         model = Reclamo
-        # Campos que el cliente puede rellenar
         fields = ['motivo', 'descripcion']
         widgets = {
             'motivo': forms.Select(attrs={'class': 'w-full border border-gray-300 rounded-lg p-2'}),

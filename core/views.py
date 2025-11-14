@@ -9,10 +9,10 @@ from django.db import transaction
 from django.http import JsonResponse
 from .forms import ( 
     RegistroForm, LoginForm, PerfilForm, ProductoForm,
-    RecuperarPasswordForm, ResetPasswordForm,ReclamoForm
+    RecuperarPasswordForm, ResetPasswordForm,ReclamoForm,
+    RepartidorProfileForm,RepartidorCreateForm,RepartidorUserForm
 )
 from .models import Carrito, Producto, Usuario, Categoria, ItemCarrito, Pedido, Slide,MetodoPago, DetallePedido,Reclamo,Repartidor
-from .forms import RepartidorForm
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -592,7 +592,7 @@ def admin_producto_editar(request, pk):
 
 @login_required
 def admin_producto_desactivar(request, pk):
-    """Activa o Desactiva un producto (HU04)""" # Texto actualizado
+    """Activa o Desactiva un producto (HU04)""" 
     if request.user.rol != 'administrador':
         messages.error(request, 'No tienes permisos para realizar esta acción.')
         return redirect('home')
@@ -651,7 +651,7 @@ def admin_pedido_detalle_view(request, pk): # Renombramos pk a pk_pedido para cl
 
     pedido = get_object_or_404(Pedido.objects.select_related('cliente', 'metodo_pago', 'repartidor__usuario') # Incluimos repartidor__usuario
                                            .prefetch_related('detalles', 'detalles__producto'), pk=pk) # Renombrado pk_pedido
-
+    
     # --- Lógica de Actualización (POST) ---
     if request.method == 'POST':
         # Determinar qué acción se está realizando (cambiar estado o asignar repartidor)
@@ -676,19 +676,28 @@ def admin_pedido_detalle_view(request, pk): # Renombramos pk a pk_pedido para cl
             repartidor_usuario_id = request.POST.get('repartidor_asignado')
             if repartidor_usuario_id:
                 try:
-                    # Buscamos el *perfil* Repartidor por el ID del *Usuario* asociado
-                    repartidor_a_asignar = Repartidor.objects.get(usuario_id=int(repartidor_usuario_id), disponible=True)
+                    # Intentamos obtener el perfil de Repartidor por el ID de Usuario
+                    repartidor_a_asignar = Repartidor.objects.get(usuario_id=int(repartidor_usuario_id))
+
+                    # Verificamos disponibilidad y devolvemos mensajes específicos
+                    if not repartidor_a_asignar.disponible:
+                        messages.warning(request,
+                                         f'El repartidor "{repartidor_a_asignar.usuario.username}" no está disponible actualmente.')
+                        return redirect('admin_pedido_detalle', pk=pedido.pk)
+
                     pedido.repartidor = repartidor_a_asignar
-                    # Opcional: Cambiar estado a 'En Camino' al asignar? Depende del flujo.
-                    # pedido.estado = 'en_camino'
                     pedido.save()
                     messages.success(request, f'Repartidor "{repartidor_a_asignar.usuario.username}" asignado al pedido #{pedido.numero_pedido}.')
-                except (Repartidor.DoesNotExist, ValueError):
-                    messages.error(request, 'Repartidor seleccionado no válido o no disponible.')
-            else: # Si se selecciona "Ninguno"
-                 pedido.repartidor = None
-                 pedido.save()
-                 messages.info(request, f'Repartidor desasignado del pedido #{pedido.numero_pedido}.')
+
+                except Repartidor.DoesNotExist:
+                    messages.error(request, 'El repartidor seleccionado no existe.')
+                except ValueError:
+                    messages.error(request, 'ID de repartidor no válido.')
+            else:
+                # Desasignar repartidor cuando se envía vacío/ninguno
+                pedido.repartidor = None
+                pedido.save()
+                messages.info(request, f'Repartidor desasignado del pedido #{pedido.numero_pedido}.')
 
         # Redirigir siempre a la misma página de detalle después de una acción POST
         return redirect('admin_pedido_detalle', pk=pedido.pk) # Renombrado pk_pedido
@@ -903,43 +912,44 @@ def admin_repartidor_crear(request):
         return redirect('admin_repartidores_lista')
 
     if request.method == 'POST':
-        # Usaremos un formulario específico para Repartidor
-        form = RepartidorForm(request.POST)
-        if form.is_valid():
-            # Creamos primero el Usuario asociado
+        # 1. Usamos los DOS formularios: uno para el Usuario y otro para el Perfil
+        user_form = RepartidorCreateForm(request.POST)
+        profile_form = RepartidorProfileForm(request.POST)
+
+        # 2. Validamos AMBOS
+        if user_form.is_valid() and profile_form.is_valid():
             try:
-                usuario = Usuario.objects.create(
-                    username=form.cleaned_data['username'],
-                    email=form.cleaned_data['email'],
-                    first_name=form.cleaned_data['first_name'],
-                    last_name=form.cleaned_data['last_name'],
-                    telefono=form.cleaned_data['telefono'],
-                    # Creamos una contraseña temporal o la asignamos si viene del form
-                    password=make_password(form.cleaned_data['password']),
-                    rol='repartidor' # Asignamos el rol correcto
-                )
-                # Luego creamos el Repartidor asociado a ese usuario
-                Repartidor.objects.create(
-                    usuario=usuario,
-                    vehiculo=form.cleaned_data.get('vehiculo'), # Usamos .get por si es opcional
-                    placa_vehiculo=form.cleaned_data.get('placa_vehiculo'),
-                    disponible=form.cleaned_data.get('disponible', True) # Por defecto disponible
-                )
-                messages.success(request, f'Repartidor "{usuario.username}" creado exitosamente.')
+                # Usar transacción para garantizar integridad entre User y Repartidor
+                with transaction.atomic():
+                    # 3. Guardamos el Usuario (UserCreationForm hashea la contraseña)
+                    user = user_form.save(commit=False)
+                    user.rol = 'repartidor'
+                    user.save()
+
+                    # 4. Guardamos el Perfil y lo enlazamos al usuario
+                    profile = profile_form.save(commit=False)
+                    profile.usuario = user
+                    profile.save()
+
+                messages.success(request, f'Repartidor "{user.username}" creado exitosamente.')
                 return redirect('admin_repartidores_lista')
-            except Exception as e: # Captura errores (ej: username duplicado)
-                messages.error(request, f'Error al crear repartidor: {e}')
+            except Exception as e:
+                messages.error(request, f'Error al crear el repartidor: {str(e)}')
         else:
-            messages.error(request, 'Por favor corrige los errores en el formulario.')
+            messages.error(request, 'Por favor corrige los errores en los formularios.')
     else:
-        # Muestra el formulario vacío
-        form = RepartidorForm()
+        # 5. Si es GET, mostramos los dos formularios vacíos
+        user_form = RepartidorCreateForm()
+        profile_form = RepartidorProfileForm()
 
     contexto = {
-        'form': form,
+        'user_form': user_form,       # Le pasamos los dos forms al template
+        'profile_form': profile_form,
         'titulo': 'Crear Nuevo Repartidor'
     }
-    return render(request, 'core/admin/repartidor_form.html', contexto) # Nueva plantilla
+    # OJO: Tendrás que actualizar tu template 'repartidor_form.html'
+    # para que muestre {{ user_form }} y {{ profile_form }}
+    return render(request, 'core/admin/repartidor_form.html', contexto)
 
 @login_required
 def admin_repartidor_editar(request, pk_usuario): # Usamos el PK del Usuario
@@ -948,55 +958,39 @@ def admin_repartidor_editar(request, pk_usuario): # Usamos el PK del Usuario
         messages.error(request, 'No tienes permisos para realizar esta acción.')
         return redirect('admin_repartidores_lista')
 
-    # Obtenemos el Usuario (que debe tener rol repartidor)
+    # 1. Obtenemos el Usuario (que debe tener rol repartidor)
     usuario_repartidor = get_object_or_404(Usuario, pk=pk_usuario, rol='repartidor')
-    # Obtenemos el perfil Repartidor asociado (puede que no exista si hubo error antes)
-    repartidor_perfil = Repartidor.objects.filter(usuario=usuario_repartidor).first()
+    
+    # 2. Obtenemos el perfil Repartidor.
+    #    Usamos get_or_create por si acaso se creó un Usuario repartidor
+    #    sin su perfil (esto arregla el 'if/else' que tenías)
+    repartidor_perfil, created = Repartidor.objects.get_or_create(usuario=usuario_repartidor)
 
     if request.method == 'POST':
-        # 'instance=usuario_repartidor' precarga datos del Usuario
-        # 'instance_perfil=repartidor_perfil' es un argumento extra para nuestro form
-        form = RepartidorForm(request.POST, instance=usuario_repartidor, instance_perfil=repartidor_perfil, initial={'username': usuario_repartidor.username}) # Pasamos initial username
-        if form.is_valid():
-            try:
-                # Guardamos cambios en el Usuario
-                usuario_repartidor.email = form.cleaned_data['email']
-                usuario_repartidor.first_name = form.cleaned_data['first_name']
-                usuario_repartidor.last_name = form.cleaned_data['last_name']
-                usuario_repartidor.telefono = form.cleaned_data['telefono']
-                # Opcional: Cambiar contraseña si se proporciona
-                password = form.cleaned_data.get('password')
-                if password:
-                    usuario_repartidor.set_password(password)
-                usuario_repartidor.save()
+        # 3. Llenamos los DOS formularios con los datos del POST y las instancias
+        user_form = RepartidorUserForm(request.POST, instance=usuario_repartidor)
+        profile_form = RepartidorProfileForm(request.POST, instance=repartidor_perfil)
 
-                # Guardamos o creamos/actualizamos el perfil Repartidor
-                if repartidor_perfil:
-                    repartidor_perfil.vehiculo = form.cleaned_data.get('vehiculo')
-                    repartidor_perfil.placa_vehiculo = form.cleaned_data.get('placa_vehiculo')
-                    repartidor_perfil.disponible = form.cleaned_data.get('disponible')
-                    repartidor_perfil.save()
-                else: # Si no existía el perfil, lo creamos
-                     Repartidor.objects.create(
-                        usuario=usuario_repartidor,
-                        vehiculo=form.cleaned_data.get('vehiculo'),
-                        placa_vehiculo=form.cleaned_data.get('placa_vehiculo'),
-                        disponible=form.cleaned_data.get('disponible', True)
-                    )
+        # 4. Validamos AMBOS
+        if user_form.is_valid() and profile_form.is_valid():
+            
+            # 5. Guardamos AMBOS (¡Django hace todo el trabajo!)
+            user_form.save()
+            profile_form.save()
 
-                messages.success(request, f'Repartidor "{usuario_repartidor.username}" actualizado.')
-                return redirect('admin_repartidores_lista')
-            except Exception as e:
-                 messages.error(request, f'Error al actualizar repartidor: {e}')
+            messages.success(request, f'Repartidor "{usuario_repartidor.username}" actualizado.')
+            return redirect('admin_repartidores_lista')
         else:
-            messages.error(request, 'Por favor corrige los errores en el formulario.')
+            messages.error(request, 'Por favor corrige los errores en los formularios.')
     else:
-        # Muestra el form precargado
-        form = RepartidorForm(instance=usuario_repartidor, instance_perfil=repartidor_perfil, initial={'username': usuario_repartidor.username})
+        # 6. Si es GET, mostramos los formularios llenos con los datos actuales
+        user_form = RepartidorUserForm(instance=usuario_repartidor)
+        profile_form = RepartidorProfileForm(instance=repartidor_perfil)
 
     contexto = {
-        'form': form,
-        'repartidor_usuario': usuario_repartidor, # Pasamos el usuario para info
+        'user_form': user_form,       # Le pasamos los dos forms al template
+        'profile_form': profile_form,
+        'repartidor_usuario': usuario_repartidor,
         'titulo': f'Editar Repartidor: {usuario_repartidor.username}'
     }
     return render(request, 'core/admin/repartidor_form.html', contexto)
@@ -1010,15 +1004,20 @@ def admin_repartidor_toggle_disponible(request, pk_usuario): # Usamos PK del Usu
 
     if request.method == 'POST':
         usuario_repartidor = get_object_or_404(Usuario, pk=pk_usuario, rol='repartidor')
-        repartidor_perfil = Repartidor.objects.filter(usuario=usuario_repartidor).first()
 
-        if repartidor_perfil:
-            repartidor_perfil.disponible = not repartidor_perfil.disponible # Invertimos estado
-            repartidor_perfil.save()
-            estado = "disponible" if repartidor_perfil.disponible else "no disponible"
-            messages.success(request, f'El repartidor "{usuario_repartidor.username}" ahora está {estado}.')
-        else:
-            messages.error(request, f'El perfil de repartidor para "{usuario_repartidor.username}" no existe.')
+        # Usar get_or_create para manejar perfiles faltantes de forma robusta
+        repartidor_perfil, created = Repartidor.objects.get_or_create(
+            usuario=usuario_repartidor,
+            defaults={'disponible': True}
+        )
+
+        if created:
+            messages.info(request, f'Se creó el perfil de repartidor para "{usuario_repartidor.username}".')
+
+        repartidor_perfil.disponible = not repartidor_perfil.disponible
+        repartidor_perfil.save()
+        estado = "disponible" if repartidor_perfil.disponible else "no disponible"
+        messages.success(request, f'El repartidor "{usuario_repartidor.username}" ahora está {estado}.')
 
     return redirect('admin_repartidores_lista')
 
@@ -1074,12 +1073,17 @@ def repartidor_pedidos_view(request):
         messages.error(request, 'No tienes permisos para acceder a esta área.')
         return redirect('home')
 
-    # Obtener el perfil de repartidor del usuario actual
-    try:
-        perfil_repartidor = request.user.perfil_repartidor
-    except Repartidor.DoesNotExist:
-        messages.error(request, 'No tienes un perfil de repartidor asociado. Contacta al administrador.')
-        return redirect('home')
+    # Obtener o crear el perfil de repartidor del usuario actual
+    perfil_repartidor, created = Repartidor.objects.get_or_create(
+        usuario=request.user,
+        defaults={
+            'disponible': True,
+            'calificacion_promedio': 5.0
+        }
+    )
+
+    if created:
+        messages.warning(request, 'Se ha creado tu perfil de repartidor. Por favor, actualiza tus datos de vehículo.')
 
     # Manejar actualización de estado (POST)
     if request.method == 'POST':

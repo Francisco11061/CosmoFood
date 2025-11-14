@@ -6,162 +6,314 @@
 
 {% block extra_css %}
 <style>
-    .header-sidebar-style {
-        background: linear-gradient(135deg, #1a1f36 0%, #0f1419 100%);
+    /* Header simple sin gradiente */
+    .header-simple {
+        background: #2d3748;
         border: none;
         color: white;
     }
-    .header-sidebar-style .card-title {
+    
+    .header-simple .card-title {
         color: white;
+        font-weight: 500;
     }
-    .header-sidebar-style i {
-        color: var(--bs-primary);
+    
+    .header-simple i {
+        color: #fc8181;
+    }
+    
+    /* Secciones con título simple */
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    /* Labels arriba */
+    .form-label {
+        font-weight: 500;
+        color: #2d3748;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    /* Campos de formulario */
+    .form-control, .form-select {
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        transition: border-color 0.15s;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #4299e1;
+        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+        outline: none;
+    }
+    
+    /* Switch */
+    .form-switch .form-check-input {
+        width: 3em;
+        height: 1.5em;
+        cursor: pointer;
+    }
+    
+    .form-switch {
+        padding-left: 3.5em;
+    }
+    
+    /* Hint de contraseña */
+    .password-hint {
+        font-size: 0.8rem;
+        color: #718096;
+        margin-top: 0.25rem;
+    }
+    
+    /* Asterisco obligatorio */
+    .required-mark {
+        color: #e53e3e;
+    }
+    
+    /* Errores */
+    .text-danger {
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+    }
+    
+    /* Card */
+    .table-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Botones */
+    .btn {
+        padding: 0.5rem 1.25rem;
+        font-weight: 500;
+        border-radius: 0.375rem;
+    }
+    
+    .btn-primary {
+        background: #4299e1;
+        border-color: #4299e1;
+    }
+    
+    .btn-primary:hover {
+        background: #3182ce;
+        border-color: #3182ce;
+    }
+    
+    .btn-secondary {
+        background: #e2e8f0;
+        border-color: #e2e8f0;
+        color: #2d3748;
+    }
+    
+    .btn-secondary:hover {
+        background: #cbd5e0;
+        border-color: #cbd5e0;
+        color: #2d3748;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-lg-8">
+    <div class="col-lg-10">
         <div class="card table-card">
-            <div class="card-header header-sidebar-style py-3">
+            <!-- Header -->
+            <div class="card-header header-simple py-3 px-4">
                 <h5 class="card-title mb-0">
-                    {# Icono cambia si es crear o editar #}
                     {% if repartidor_usuario %}
-                        <i class="fas fa-edit me-2"></i>Editando a: {{ repartidor_usuario.username }}
+                        <i class="fas fa-user-plus me-2"></i>Editando Repartidor
                     {% else %}
                         <i class="fas fa-user-plus me-2"></i>Nuevo Repartidor
                     {% endif %}
                 </h5>
             </div>
+
             <div class="card-body p-4">
-                {# El formulario envía los datos a la misma URL (create o edit) #}
                 <form method="POST">
                     {% csrf_token %}
 
-                    {# Muestra errores generales del formulario si los hay #}
-                    {% if form.non_field_errors %}
+                    <!-- Errores generales -->
+                    {% if user_form.non_field_errors or profile_form.non_field_errors %}
                         <div class="alert alert-danger" role="alert">
-                            {% for error in form.non_field_errors %}
-                                {{ error }}
-                            {% endfor %}
+                            {% for error in user_form.non_field_errors %}{{ error }}<br>{% endfor %}
+                            {% for error in profile_form.non_field_errors %}{{ error }}{% endfor %}
                         </div>
                     {% endif %}
 
-                    {# --- Campos del Usuario --- #}
-                    <h6 class="text-muted mb-3">Datos de la Cuenta</h6>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.username.id_for_label }}" class="form-label fw-semibold">{{ form.username.label }}</label>
-                            {# Renderiza el campo username con clases Bootstrap #}
-                            {{ form.username }}
-                            {# Muestra errores específicos del campo #}
-                            {% if form.username.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.username.errors %}{{ error }}{% endfor %}
+                    <!-- Sección: Datos de la Cuenta -->
+                    <div class="section-title">Datos de la Cuenta</div>
+
+                    <!-- Fila 1: Usuario + Email -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ user_form.username.id_for_label }}" class="form-label">
+                                Nombre de Usuario<span class="required-mark">*</span>
+                            </label>
+                            {{ user_form.username }}
+                            {% if user_form.username.errors %}
+                                <div class="text-danger">
+                                    {% for error in user_form.username.errors %}{{ error }}{% endfor %}
                                 </div>
                             {% endif %}
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.email.id_for_label }}" class="form-label fw-semibold">{{ form.email.label }}</label>
-                            {{ form.email }}
-                            {% if form.email.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.email.errors %}{{ error }}{% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="row">
-                         <div class="col-md-6 mb-3">
-                            <label for="{{ form.first_name.id_for_label }}" class="form-label fw-semibold">{{ form.first_name.label }}</label>
-                            {{ form.first_name }}
-                            {% if form.first_name.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.first_name.errors %}{{ error }}{% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.last_name.id_for_label }}" class="form-label fw-semibold">{{ form.last_name.label }}</label>
-                            {{ form.last_name }}
-                            {% if form.last_name.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.last_name.errors %}{{ error }}{% endfor %}
+
+                        <div class="col-md-6">
+                            <label for="{{ user_form.email.id_for_label }}" class="form-label">
+                                Correo Electrónico<span class="required-mark">*</span>
+                            </label>
+                            {{ user_form.email }}
+                            {% if user_form.email.errors %}
+                                <div class="text-danger">
+                                    {% for error in user_form.email.errors %}{{ error }}{% endfor %}
                                 </div>
                             {% endif %}
                         </div>
                     </div>
-                     <div class="mb-3">
-                        <label for="{{ form.telefono.id_for_label }}" class="form-label fw-semibold">{{ form.telefono.label }}</label>
-                        {{ form.telefono }}
-                        {% if form.telefono.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.telefono.errors %}{{ error }}{% endfor %}
+
+                    <!-- Fila 2: Nombres + Apellidos -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ user_form.first_name.id_for_label }}" class="form-label">
+                                Nombres<span class="required-mark">*</span>
+                            </label>
+                            {{ user_form.first_name }}
+                            {% if user_form.first_name.errors %}
+                                <div class="text-danger">
+                                    {% for error in user_form.first_name.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="{{ user_form.last_name.id_for_label }}" class="form-label">
+                                Apellidos<span class="required-mark">*</span>
+                            </label>
+                            {{ user_form.last_name }}
+                            {% if user_form.last_name.errors %}
+                                <div class="text-danger">
+                                    {% for error in user_form.last_name.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Fila 3: Teléfono (ancho completo) -->
+                    {% if user_form.telefono %}
+                    <div class="row g-3 mb-3">
+                        <div class="col-12">
+                            <label for="{{ user_form.telefono.id_for_label }}" class="form-label">
+                                Teléfono
+                            </label>
+                            {{ user_form.telefono }}
+                            {% if user_form.telefono.errors %}
+                                <div class="text-danger">
+                                    {% for error in user_form.telefono.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Contraseñas: Solo al crear -->
+                    {% if not repartidor_usuario %}
+                        <!-- Fila 4: Contraseña + Confirmar -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ user_form.password1.id_for_label }}" class="form-label">
+                                    Contraseña<span class="required-mark">*</span>
+                                </label>
+                                {{ user_form.password1 }}
+                                <div class="password-hint">Mínimo 8 caracteres</div>
+                                {% if user_form.password1.errors %}
+                                    <div class="text-danger">
+                                        {% for error in user_form.password1.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
                             </div>
-                        {% endif %}
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.password.id_for_label }}" class="form-label fw-semibold">{{ form.password.label }}</label>
-                            {{ form.password }}
-                            <div class="form-text">{{ form.password.help_text }}</div>
-                            {% if form.password.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.password.errors %}{{ error }}{% endfor %}
-                                </div>
-                            {% endif %}
+
+                            <div class="col-md-6">
+                                <label for="{{ user_form.password2.id_for_label }}" class="form-label">
+                                    Confirmar Contraseña<span class="required-mark">*</span>
+                                </label>
+                                {{ user_form.password2 }}
+                                {% if user_form.password2.errors %}
+                                    <div class="text-danger">
+                                        {% for error in user_form.password2.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
-                         <div class="col-md-6 mb-3">
-                            <label for="{{ form.password_confirm.id_for_label }}" class="form-label fw-semibold">{{ form.password_confirm.label }}</label>
-                            {{ form.password_confirm }}
-                            {% if form.password_confirm.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.password_confirm.errors %}{{ error }}{% endfor %}
-                                </div>
-                            {% endif %}
+                        
+                        <!-- Nota debajo de las contraseñas -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <p class="text-muted small mb-0">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Dejar en blanco para no cambiar la contraseña existente.
+                                </p>
+                            </div>
                         </div>
-                    </div>
+                    {% endif %}
 
                     <hr class="my-4">
 
-                    {# --- Campos del Repartidor --- #}
-                    <h6 class="text-muted mb-3">Datos del Repartidor</h6>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.vehiculo.id_for_label }}" class="form-label fw-semibold">{{ form.vehiculo.label }}</label>
-                            {{ form.vehiculo }}
-                             {% if form.vehiculo.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.vehiculo.errors %}{{ error }}{% endfor %}
+                    <!-- Sección: Datos del Repartidor -->
+                    <div class="section-title">Datos del Repartidor</div>
+
+                    <!-- Fila 5: Vehículo + Placa -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ profile_form.vehiculo.id_for_label }}" class="form-label">
+                                Vehículo
+                            </label>
+                            {{ profile_form.vehiculo }}
+                            {% if profile_form.vehiculo.errors %}
+                                <div class="text-danger">
+                                    {% for error in profile_form.vehiculo.errors %}{{ error }}{% endfor %}
                                 </div>
                             {% endif %}
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.placa_vehiculo.id_for_label }}" class="form-label fw-semibold">{{ form.placa_vehiculo.label }}</label>
-                            {{ form.placa_vehiculo }}
-                             {% if form.placa_vehiculo.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.placa_vehiculo.errors %}{{ error }}{% endfor %}
+
+                        <div class="col-md-6">
+                            <label for="{{ profile_form.placa_vehiculo.id_for_label }}" class="form-label">
+                                Placa Patente
+                            </label>
+                            {{ profile_form.placa_vehiculo }}
+                            {% if profile_form.placa_vehiculo.errors %}
+                                <div class="text-danger">
+                                    {% for error in profile_form.placa_vehiculo.errors %}{{ error }}{% endfor %}
                                 </div>
                             {% endif %}
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <div class="form-check form-switch">
-                            {# Renderiza el checkbox como un switch #}
-                            {{ form.disponible }}
-                            <label class="form-check-label" for="{{ form.disponible.id_for_label }}">{{ form.disponible.label }}</label>
-                        </div>
-                         {% if form.disponible.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.disponible.errors %}{{ error }}{% endfor %}
-                            </div>
-                        {% endif %}
                     </div>
 
-                    {# Botones de Acción #}
-                    <div class="d-flex justify-content-between mt-4 pt-3 border-top">
+                    <!-- Fila 6: Disponible (Switch) -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                {{ profile_form.disponible }}
+                                <label class="form-check-label" for="{{ profile_form.disponible.id_for_label }}">
+                                    Disponible para entregas
+                                </label>
+                            </div>
+                            {% if profile_form.disponible.errors %}
+                                <div class="text-danger">
+                                    {% for error in profile_form.disponible.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Botones de acción -->
+                    <div class="d-flex justify-content-between align-items-center pt-3 mt-3 border-top">
                         <a href="{% url 'admin_repartidores_lista' %}" class="btn btn-secondary">
                             <i class="fas fa-times me-2"></i>Cancelar
                         </a>
