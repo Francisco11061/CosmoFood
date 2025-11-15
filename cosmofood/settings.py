@@ -141,3 +141,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Le dice a Django cuál es la URL de tu página de login
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
+
+# ========== CONFIGURACIÓN WEBPAY (SANDBOX) ==========
+WEBPAY_COMMERCE_CODE = '597055555532'  # Código de comercio de prueba
+WEBPAY_API_KEY = '579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C'  # API Key de prueba
+WEBPAY_ENVIRONMENT = 'TEST'  # Cambiar a 'LIVE' en producción
+
+# URL base de tu sitio cambiar si es en producción
+SITE_URL = 'http://127.0.0.1:8000' 

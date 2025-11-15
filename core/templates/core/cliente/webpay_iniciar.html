@@ -1,0 +1,26 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Redirigiendo a Webpay...{% endblock %}
+
+{% block content %}
+<div class="container mt-5 text-center">
+    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+        <span class="visually-hidden">Cargando...</span>
+    </div>
+    <h3 class="mt-4">Redirigiendo al portal de pago seguro...</h3>
+    <p class="text-muted">Por favor, espera un momento. No cierres esta ventana.</p>
+    
+    <!-- Formulario oculto que se auto-envía a Webpay -->
+    <form id="webpay-form" method="POST" action="{{ url_webpay }}">
+        <input type="hidden" name="token_ws" value="{{ token_ws }}">
+    </form>
+</div>
+
+<script>
+    // Auto-enviar el formulario después de 1 segundo
+    setTimeout(function() {
+        document.getElementById('webpay-form').submit();
+    }, 1000);
+</script>
+{% endblock %}

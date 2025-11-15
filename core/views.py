@@ -20,11 +20,17 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.sites.shortcuts import get_current_site
 from django.utils import timezone
 from django.db.models import Sum    
-from datetime import timedelta,datetime
+from datetime import timedelta, datetime
 import json
 import pandas as pd
 from io import BytesIO
+from transbank.webpay.webpay_plus.transaction import Transaction
+from transbank.common.options import WebpayOptions
+from transbank.common.integration_type import IntegrationType
+from django.conf import settings
+import logging
 
+logger = logging.getLogger(__name__)
 
 def home(request):
     slides = Slide.objects.filter(activo=True).order_by('orden')
@@ -1173,9 +1179,10 @@ def repartidor_pedidos_view(request):
     }
 
     return render(request, 'core/repartidor/repartidor_pedidos.html', contexto)
-	#Logica del pago por mientras 
+
+#Logica del pago con pasarela de pago (HU16, HU17) 
 @login_required
-@transaction.atomic  # Importante: importa 'transaction' de django.db
+@transaction.atomic
 def checkout_view(request):
     try:
         carrito = request.user.carrito
@@ -1187,17 +1194,15 @@ def checkout_view(request):
         messages.error(request, 'No tienes un carrito.')
         return redirect('home')
 
-    # Obtenemos los métodos de pago activos para el formulario
     metodos_pago_activos = MetodoPago.objects.filter(activo=True)
 
     if request.method == 'POST':
-        # --- PROCESAR EL PEDIDO ---
         tipo_orden = request.POST.get('tipo_orden')
         metodo_pago_id = request.POST.get('metodo_pago')
         direccion = request.POST.get('direccion_entrega', '')
         notas = request.POST.get('notas_cliente', '')
 
-        # --- Validaciones ---
+        # Validaciones
         if tipo_orden == 'delivery' and not direccion:
             messages.error(request, 'La dirección es obligatoria para pedidos a domicilio.')
             return redirect('checkout')
@@ -1208,28 +1213,27 @@ def checkout_view(request):
             messages.error(request, 'Método de pago no válido.')
             return redirect('checkout')
 
-        # --- Crear el Pedido ---
+        # Crear el Pedido (siempre como PENDIENTE si es Webpay)
+        estado_inicial = 'pendiente' if metodo_pago.tipo == 'webpay' else 'confirmado'
+        
         nuevo_pedido = Pedido.objects.create(
             cliente=request.user,
             metodo_pago=metodo_pago,
             tipo_orden=tipo_orden,
-            estado='confirmado',  # O 'pendiente' si prefieres que el admin lo confirme
+            estado=estado_inicial,
             direccion_entrega=direccion,
             notas_cliente=notas,
             subtotal=carrito.total_precio,
-            costo_envio=0,  # TODO: Implementar lógica de costo de envío
-            total=carrito.total_precio # TODO: Sumar costo de envío
+            costo_envio=0,
+            total=carrito.total_precio
         )
 
-        # --- Crear Detalles del Pedido y Descontar Stock ---
+        # Crear Detalles del Pedido y Descontar Stock
         for item in items:
-            # Bloqueamos el producto para evitar problemas de concurrencia
             producto = Producto.objects.select_for_update().get(pk=item.producto.pk)
 
             if producto.stock < item.cantidad:
-                # Si no hay stock, cancelamos toda la transacción
                 messages.error(request, f'No hay suficiente stock para {producto.nombre}.')
-                # 'transaction.atomic' revertirá la creación del pedido
                 return redirect('ver_carrito')
 
             DetallePedido.objects.create(
@@ -1239,18 +1243,24 @@ def checkout_view(request):
                 precio_unitario=producto.precio
             )
 
-            # Descontamos el stock
             producto.stock -= item.cantidad
             producto.save()
 
-        # --- Limpiar el carrito ---
+        # Limpiar el carrito
         carrito.items.all().delete()
 
-        messages.success(request, '¡Tu pedido ha sido recibido con éxito!')
-        return redirect('pedido_confirmado', pk=nuevo_pedido.pk)
+        # ✨ DECISIÓN: ¿Es Webpay o pago directo?
+        if metodo_pago.tipo == 'webpay':
+            # Redirigir al flujo de Webpay
+            return redirect('webpay_iniciar_pago', pedido_id=nuevo_pedido.id)
+        else:
+            # Pago directo (efectivo, transferencia, etc.)
+            nuevo_pedido.fecha_confirmacion = timezone.now()
+            nuevo_pedido.save()
+            messages.success(request, '¡Tu pedido ha sido recibido con éxito!')
+            return redirect('pedido_confirmado', pk=nuevo_pedido.pk)
 
     else:
-        # --- MOSTRAR EL FORMULARIO (GET) ---
         contexto = {
             'carrito': carrito,
             'items': items,
@@ -1259,7 +1269,6 @@ def checkout_view(request):
             'titulo': 'Finalizar Compra'
         }
         return render(request, 'core/cliente/checkout.html', contexto)
-
 
 # --- Boleta Cliente ---
 @login_required
@@ -1636,3 +1645,149 @@ def admin_descargar_ventas_excel(request):
     response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
 
     return response
+
+# ========== INTEGRACIÓN WEBPAY PLUS ==========
+from transbank.webpay.webpay_plus.transaction import Transaction
+from transbank.common.options import WebpayOptions
+from transbank.common.integration_type import IntegrationType
+
+@login_required
+def webpay_iniciar_pago(request, pedido_id):
+    """
+    Vista "puente" que inicia la transacción con Webpay.
+    El usuario NO ve esta página, es automática.
+    """
+    # Obtener el pedido pendiente
+    pedido = get_object_or_404(Pedido, pk=pedido_id, cliente=request.user, estado='pendiente')
+    
+    # Construir la URL de retorno
+    return_url = request.build_absolute_uri('/webpay/retorno/')
+    
+    try:
+        # Configurar opciones de Webpay
+        if settings.WEBPAY_ENVIRONMENT == 'TEST':
+            options = WebpayOptions(
+                commerce_code=settings.WEBPAY_COMMERCE_CODE,
+                api_key=settings.WEBPAY_API_KEY,
+                integration_type=IntegrationType.TEST
+            )
+        else:
+            options = WebpayOptions(
+                commerce_code=settings.WEBPAY_COMMERCE_CODE,
+                api_key=settings.WEBPAY_API_KEY,
+                integration_type=IntegrationType.LIVE
+            )
+        
+        # Crear la transacción
+        buy_order = str(pedido.numero_pedido)
+        session_id = str(request.user.id)
+        amount = int(pedido.total)
+        
+        # Crear instancia de Transaction con opciones
+        tx = Transaction(options)
+        response = tx.create(buy_order, session_id, amount, return_url)
+        
+        # Guardar el token en la sesión
+        request.session['webpay_token'] = response['token']
+        request.session['webpay_pedido_id'] = pedido.id
+        
+        logger.info(f"Transacción Webpay iniciada para pedido {pedido.numero_pedido}")
+        
+        # Renderizar página intermedia
+        contexto = {
+            'url_webpay': response['url'],
+            'token_ws': response['token'],
+            'pedido': pedido
+        }
+        return render(request, 'core/cliente/webpay_iniciar.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error al iniciar Webpay: {str(e)}")
+        messages.error(request, f'Error al procesar el pago: {str(e)}')
+        return redirect('ver_carrito')
+
+
+@login_required
+def webpay_retorno(request):
+    """
+    Vista "portero" que recibe al usuario cuando vuelve de Webpay.
+    Aquí confirmamos si el pago fue exitoso.
+    """
+    token_ws = request.GET.get('token_ws')
+    
+    if not token_ws:
+        messages.error(request, 'No se recibió confirmación del pago.')
+        return redirect('mis_pedidos')
+    
+    # Verificar que el token coincide con el de la sesión
+    token_sesion = request.session.get('webpay_token')
+    pedido_id = request.session.get('webpay_pedido_id')
+    
+    if token_ws != token_sesion:
+        messages.error(request, 'Token de pago inválido.')
+        return redirect('mis_pedidos')
+    
+    try:
+        # Configurar opciones de Webpay
+        if settings.WEBPAY_ENVIRONMENT == 'TEST':
+            options = WebpayOptions(
+                commerce_code=settings.WEBPAY_COMMERCE_CODE,
+                api_key=settings.WEBPAY_API_KEY,
+                integration_type=IntegrationType.TEST
+            )
+        else:
+            options = WebpayOptions(
+                commerce_code=settings.WEBPAY_COMMERCE_CODE,
+                api_key=settings.WEBPAY_API_KEY,
+                integration_type=IntegrationType.LIVE
+            )
+        
+        # Confirmar transacción
+        tx = Transaction(options)
+        response = tx.commit(token_ws)
+        
+        logger.info(f"Respuesta Webpay: {response}")
+        
+        # Verificar si el pago fue aprobado
+        if response['status'] == 'AUTHORIZED' and response['response_code'] == 0:
+            pedido = Pedido.objects.get(pk=pedido_id)
+            pedido.estado = 'confirmado'
+            pedido.fecha_confirmacion = timezone.now()
+            pedido.save()
+            
+            # Limpiar la sesión
+            del request.session['webpay_token']
+            del request.session['webpay_pedido_id']
+            
+            messages.success(request, '¡Pago exitoso! Tu pedido ha sido confirmado.')
+            return redirect('pedido_confirmado', pk=pedido.id)
+        else:
+            messages.error(request, f'El pago fue rechazado. Código: {response.get("response_code")}')
+            return redirect('ver_carrito')
+            
+    except Exception as e:
+        logger.error(f"Error al confirmar transacción Webpay: {str(e)}")
+        messages.error(request, 'Error al validar el pago. Contacta con soporte.')
+        return redirect('mis_pedidos')
+
+
+@login_required  
+def webpay_cancelar(request):
+    """
+    Vista que maneja cuando el usuario cancela el pago en Webpay.
+    """
+    # Limpiar la sesión
+    if 'webpay_token' in request.session:
+        del request.session['webpay_token']
+    if 'webpay_pedido_id' in request.session:
+        pedido_id = request.session['webpay_pedido_id']
+        try:
+            pedido = Pedido.objects.get(pk=pedido_id)
+            pedido.estado = 'cancelado'
+            pedido.save()
+        except Pedido.DoesNotExist:
+            pass
+        del request.session['webpay_pedido_id']
+    
+    messages.warning(request, 'Has cancelado el pago. Tu pedido no fue procesado.')
+    return redirect('ver_carrito')

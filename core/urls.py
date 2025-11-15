@@ -58,4 +58,9 @@ urlpatterns = [
     # Reportes para admin
     path('panel/reportes/', views.admin_reportes_view, name='admin_reportes'),
     path('panel/reportes/ventas-excel/', views.admin_descargar_ventas_excel, name='admin_descargar_ventas_excel'),
+    #  Pasarela de pago WebPay 
+    path('webpay/iniciar/<int:pedido_id>/', views.webpay_iniciar_pago, name='webpay_iniciar_pago'),
+    path('webpay/retorno/', views.webpay_retorno, name='webpay_retorno'),
+    path('webpay/cancelar/', views.webpay_cancelar, name='webpay_cancelar'),
+
 ]

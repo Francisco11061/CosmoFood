@@ -35,7 +35,7 @@ class Categoria(models.Model):
       class Meta:
             verbose_name = 'Categoría'
             verbose_name_plural = 'Categorías'
-            ordering = ['nombre']  # ← Agregué ordenamiento
+            ordering = ['nombre'] 
       def __str__(self):
             return self.nombre
 
