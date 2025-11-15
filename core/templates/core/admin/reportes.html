@@ -1,0 +1,316 @@
+{% extends 'core/admin/admin_base.html' %}
+
+{% block title %}Reportes{% endblock %}
+{% block page_title %}Centro de Reportes{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Gradientes Estilo Cosmofood (Naranja/Negro) */
+    .gradient-orange-dark {
+        background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    }
+    .gradient-dark-orange {
+        background: linear-gradient(135deg, #1a1f36 0%, #2d3748 100%);
+    }
+    .gradient-orange-light {
+        background: linear-gradient(135deg, #ff9a76 0%, #ffb366 100%);
+    }
+    .gradient-cosmofood {
+        background: linear-gradient(135deg, #ff6b35 0%, #2d3748 100%);
+    }
+    /* Card Principal de Descarga */
+    .download-card {
+        border-radius: 24px;
+        border: none;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        background: white;
+    }
+    .download-card-header {
+        padding: 3rem 2rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    .download-card-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: pulse 4s ease-in-out infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.8; }
+    }
+    .download-icon {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        display: inline-block;
+    }
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+    
+    /* Inputs Modernos */
+    .modern-input {
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 0.875rem 1.25rem;
+        transition: all 0.3s ease;
+        font-size: 1rem;
+    }
+    .modern-input:focus {
+        border-color: #ff6b35;
+        box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        transform: translateY(-1px);
+    }
+    .modern-label {
+        font-weight: 600;
+        font-size: 1rem;
+        color: #2d3748;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    /* Info Box Estilo Cosmofood */
+    .info-box {
+        background: linear-gradient(135deg, #fff5f0 0%, #ffe8db 100%);
+        border: none;
+        border-radius: 16px;
+        padding: 1.75rem;
+        border-left: 5px solid #ff6b35;
+    }
+    .info-box-icon {
+        font-size: 2rem;
+        color: #ff6b35;
+        margin-top: 0.25rem;
+    }
+    
+    /* Botón de Descarga Cosmofood */
+    .btn-download {
+        background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+        border: none;
+        padding: 1.25rem 2.5rem;
+        font-size: 1.2rem;
+        font-weight: 700;
+        border-radius: 16px;
+        color: white;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(255, 107, 53, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    .btn-download::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        transition: left 0.5s;
+    }
+    .btn-download:hover::before {
+        left: 100%;
+    }
+    .btn-download:active {
+        transform: translateY(0);
+    }
+    
+    /* Features Grid */
+    .feature-item {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 16px;
+        transition: all 0.3s ease;
+        border: 2px solid #f0f0f0;
+        height: 100%;
+    }
+    .feature-item:hover {
+        border-color: #ff6b35;
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+    .feature-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        display: block;
+        background: linear-gradient(135deg, #ff6b35, #f7931e);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    /* Footer Card Mejorado */
+    .card-footer-custom {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: none;
+        padding: 1.5rem;
+        border-bottom-left-radius: 24px;
+        border-bottom-right-radius: 24px;
+    }
+    
+    /* Sección Próximamente */
+    .coming-soon-card {
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+        border-radius: 20px;
+        padding: 2rem;
+        text-align: center;
+        border: none;
+    }
+    .coming-soon-item {
+        background: white;
+        padding: 2rem 1.5rem;
+        border-radius: 16px;
+        transition: all 0.3s ease;
+        height: 100%;
+        border: 3px solid transparent;
+    }
+    .coming-soon-item:hover {
+        border-color: #ff9a76;
+        transform: translateY(-5px);
+        box-shadow: 0 12px 30px rgba(255, 154, 118, 0.2);
+    }
+    .coming-soon-icon {
+        font-size: 3.5rem;
+        margin-bottom: 1.5rem;
+        color: #ff9a76;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Sección Principal: Descargar Reporte -->
+<div class="row mb-5">
+    <div class="col-lg-10 mx-auto">
+        <div class="card download-card">
+            <div class="card-header download-card-header gradient-cosmofood text-white">
+                <i class="fas fa-file-excel download-icon"></i>
+                <h2 class="mb-2 fw-bold">Exportar Reporte de Ventas</h2>
+                <p class="mb-0 fs-5 opacity-90">Descarga un archivo Excel con todas las ventas entregadas y filtra por fechas</p>
+            </div>
+            
+            <div class="card-body p-5">
+                <form action="{% url 'admin_descargar_ventas_excel' %}" method="GET">
+                    <!-- Filtros de Fecha -->
+                    <div class="row g-4 mb-5">
+                        <div class="col-md-6">
+                            <label for="fecha_inicio" class="modern-label">
+                                <i class="fas fa-calendar-day text-primary"></i>
+                                Fecha de Inicio
+                            </label>
+                            <input type="date" 
+                                   class="form-control modern-input" 
+                                   id="fecha_inicio" 
+                                   name="fecha_inicio">
+                            <small class="text-muted mt-2 d-block">
+                                <i class="fas fa-info-circle me-1"></i>Deja vacío para incluir desde el inicio
+                            </small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="fecha_fin" class="modern-label">
+                                <i class="fas fa-calendar-check text-primary"></i>
+                                Fecha de Fin
+                            </label>
+                            <input type="date" 
+                                   class="form-control modern-input" 
+                                   id="fecha_fin" 
+                                   name="fecha_fin">
+                            <small class="text-muted mt-2 d-block">
+                                <i class="fas fa-info-circle me-1"></i>Deja vacío para incluir hasta hoy
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Información del Reporte -->
+                    <div class="alert info-box mb-5">
+                        <div class="d-flex align-items-start gap-3">
+                            <i class="fas fa-clipboard-list info-box-icon"></i>
+                            <div class="flex-grow-1">
+                                <h5 class="fw-bold mb-3" style="color: #ff6b35;">📊 Contenido del Reporte</h5>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <ul class="list-unstyled mb-0">
+                                            <li class="mb-2">
+                                                <i class="fas fa-check text-success me-2"></i>
+                                                <strong>Número de pedido</strong>
+                                            </li>
+                                            <li class="mb-2">
+                                                <i class="fas fa-check text-success me-2"></i>
+                                                <strong>Datos del cliente</strong>
+                                            </li>
+                                            <li class="mb-2">
+                                                <i class="fas fa-check text-success me-2"></i>
+                                                <strong>Fecha y hora</strong>
+                                            </li>
+                                            <li class="mb-2">
+                                                <i class="fas fa-check text-success me-2"></i>
+                                                <strong>Tipo de orden</strong>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <ul class="list-unstyled mb-0">
+                                            <li class="mb-2">
+                                                <i class="fas fa-check text-success me-2"></i>
+                                                <strong>Montos (Subtotal, Envío, Total)</strong>
+                                            </li>
+                                            <li class="mb-2">
+                                                <i class="fas fa-check text-success me-2"></i>
+                                                <strong>Método de pago</strong>
+                                            </li>
+                                            <li class="mb-2">
+                                                <i class="fas fa-check text-success me-2"></i>
+                                                <strong>Dirección de entrega</strong>
+                                            </li>
+                                            <li class="mb-2">
+                                                <i class="fas fa-check text-success me-2"></i>
+                                                <strong>Fila de totales incluida</strong>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botón de Descarga -->
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-download">
+                            <i class="fas fa-download me-3"></i>
+                            Descargar Reporte en Excel
+                            <i class="fas fa-arrow-right ms-3"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Footer -->
+            <div class="card-footer card-footer-custom text-center">
+                <div class="d-flex justify-content-center align-items-center flex-wrap gap-4">
+                    <small class="text-muted d-flex align-items-center gap-2">
+                        <i class="fas fa-shield-alt text-primary"></i>
+                        <strong>Solo pedidos entregados</strong>
+                    </small>
+                    <small class="text-muted d-flex align-items-center gap-2">
+                        <i class="fas fa-lock text-warning"></i>
+                        <strong>Información confidencial</strong>
+                    </small>
+                    <small class="text-muted d-flex align-items-center gap-2">
+                        <i class="fas fa-file-excel text-success"></i>
+                        <strong>Formato Excel (.xlsx)</strong>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}

@@ -6,7 +6,7 @@ from django.core.mail import send_mail
 from django.contrib import messages
 from django.db import models
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from .forms import ( 
     RegistroForm, LoginForm, PerfilForm, ProductoForm,
     RecuperarPasswordForm, ResetPasswordForm,ReclamoForm,
@@ -20,8 +20,10 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.sites.shortcuts import get_current_site
 from django.utils import timezone
 from django.db.models import Sum    
-from datetime import timedelta
+from datetime import timedelta,datetime
 import json
+import pandas as pd
+from io import BytesIO
 
 
 def home(request):
@@ -1487,3 +1489,150 @@ def cocina_view(request):
     }
 
     return render(request, 'core/cocina/cocina.html', contexto)
+
+# ========== REPORTES (HU13) ==========
+
+@login_required
+def admin_reportes_view(request):
+    """Página de reportes con opciones de descarga"""
+    if request.user.rol != 'administrador':
+        messages.error(request, 'No tienes permisos para acceder aquí.')
+        return redirect('home')
+    
+    # Estadísticas rápidas para mostrar en la página
+    total_ventas = Pedido.objects.filter(estado='entregado').count()
+    ventas_mes_actual = Pedido.objects.filter(
+        estado='entregado',
+        fecha_creacion__month=timezone.now().month,
+        fecha_creacion__year=timezone.now().year
+    ).count()
+    
+    contexto = {
+        'titulo': 'Reportes',
+        'total_ventas': total_ventas,
+        'ventas_mes_actual': ventas_mes_actual,
+    }
+    return render(request, 'core/admin/reportes.html', contexto)
+
+
+@login_required
+def admin_descargar_ventas_excel(request):
+    """Genera y descarga un reporte de ventas en formato Excel con filtros de fecha"""
+    if request.user.rol != 'administrador':
+        messages.error(request, 'No tienes permisos para acceder aquí.')
+        return redirect('home')
+
+    # --- 1. OBTENER FILTROS DE LA URL ---
+    fecha_inicio = request.GET.get('fecha_inicio', None)
+    fecha_fin = request.GET.get('fecha_fin', None)
+
+    # --- 2. CONSULTA BASE (Solo pedidos entregados) ---
+    pedidos = Pedido.objects.filter(
+        estado='entregado'
+    ).select_related('cliente', 'metodo_pago').order_by('-fecha_creacion')
+
+    # --- 3. APLICAR FILTROS DE FECHA ---
+    if fecha_inicio:
+        pedidos = pedidos.filter(fecha_creacion__date__gte=fecha_inicio)
+    
+    if fecha_fin:
+        pedidos = pedidos.filter(fecha_creacion__date__lte=fecha_fin)
+
+    # --- 4. EXTRAER DATOS ---
+    data_list = list(pedidos.values(
+        'numero_pedido',
+        'cliente__username',
+        'cliente__first_name',
+        'cliente__last_name',
+        'fecha_creacion',
+        'tipo_orden',
+        'subtotal',
+        'costo_envio',
+        'total',
+        'metodo_pago__nombre',
+        'direccion_entrega'
+    ))
+
+    # Si no hay datos, devolver mensaje
+    if not data_list:
+        messages.warning(request, 'No hay ventas en el rango de fechas seleccionado.')
+        return redirect('admin_reportes')
+
+    # --- 5. CREAR DATAFRAME ---
+    df = pd.DataFrame(data_list)
+
+    # Renombrar columnas
+    df.rename(columns={
+        'numero_pedido': 'N° Pedido',
+        'cliente__username': 'Usuario',
+        'cliente__first_name': 'Nombre',
+        'cliente__last_name': 'Apellido',
+        'fecha_creacion': 'Fecha y Hora',
+        'tipo_orden': 'Tipo de Orden',
+        'subtotal': 'Subtotal',
+        'costo_envio': 'Costo Envío',
+        'total': 'Total',
+        'metodo_pago__nombre': 'Método de Pago',
+        'direccion_entrega': 'Dirección'
+    }, inplace=True)
+
+    # Formatear fecha (solo fecha, sin hora)
+    df['Fecha y Hora'] = pd.to_datetime(df['Fecha y Hora']).dt.strftime('%d/%m/%Y %H:%M')
+
+    # --- 6. AGREGAR FILA DE TOTALES ---
+    total_ventas = df['Total'].sum()
+    df_totales = pd.DataFrame([{
+        'N° Pedido': '',
+        'Usuario': '',
+        'Nombre': '',
+        'Apellido': '',
+        'Fecha y Hora': '',
+        'Tipo de Orden': '',
+        'Subtotal': '',
+        'Costo Envío': 'TOTAL:',
+        'Total': total_ventas,
+        'Método de Pago': '',
+        'Dirección': ''
+    }])
+    df = pd.concat([df, df_totales], ignore_index=True)
+
+    # --- 7. CREAR ARCHIVO EXCEL ---
+    output_buffer = BytesIO()
+    with pd.ExcelWriter(output_buffer, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Reporte de Ventas', index=False)
+        
+        # Obtener el worksheet para ajustar anchos de columna
+        worksheet = writer.sheets['Reporte de Ventas']
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(cell.value)
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+
+    output_buffer.seek(0)
+
+    # --- 8. GENERAR NOMBRE DE ARCHIVO DINÁMICO ---
+    if fecha_inicio and fecha_fin:
+        nombre_archivo = f'reporte_ventas_{fecha_inicio}_al_{fecha_fin}.xlsx'
+    elif fecha_inicio:
+        nombre_archivo = f'reporte_ventas_desde_{fecha_inicio}.xlsx'
+    elif fecha_fin:
+        nombre_archivo = f'reporte_ventas_hasta_{fecha_fin}.xlsx'
+    else:
+        fecha_actual = datetime.now().strftime('%Y%m%d')
+        nombre_archivo = f'reporte_ventas_{fecha_actual}.xlsx'
+
+    # --- 9. DEVOLVER RESPUESTA ---
+    response = HttpResponse(
+        output_buffer,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+
+    return response

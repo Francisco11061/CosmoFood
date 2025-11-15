@@ -260,6 +260,9 @@
             <a class="nav-link {% if 'reclamo' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_reclamos_lista' %}">
                 <i class="fas fa-comment-dots fa-fw me-2"></i>Reclamos
             </a>
+            <a class="nav-link {% if request.resolver_match.url_name == 'admin_reportes' %}active{% endif %}" href="{% url 'admin_reportes' %}">
+                <i class="fas fa-chart-bar fa-fw me-2"></i>Reportes
+            </a>
         
         {% elif user.rol == 'cajero' %}
             <!-- MENÚ LIMITADO DEL CAJERO -->

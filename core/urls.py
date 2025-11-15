@@ -51,7 +51,11 @@ urlpatterns = [
     # Checkout de pago
     path('checkout/', views.checkout_view, name='checkout'),
     path('pedido-confirmado/<int:pk>/', views.pedido_confirmado_view, name='pedido_confirmado'),
-    
+    # Punto de venta para cajeros
     path('pos/', views.pos_cajero_view, name='pos_cajero'),
+    # Vista de cocina
     path('cocina/', views.cocina_view, name='cocina_view'),
+    # Reportes para admin
+    path('panel/reportes/', views.admin_reportes_view, name='admin_reportes'),
+    path('panel/reportes/ventas-excel/', views.admin_descargar_ventas_excel, name='admin_descargar_ventas_excel'),
 ]
