@@ -10,9 +10,9 @@ from django.http import JsonResponse, HttpResponse
 from .forms import ( 
     RegistroForm, LoginForm, PerfilForm, ProductoForm,
     RecuperarPasswordForm, ResetPasswordForm,ReclamoForm,
-    RepartidorProfileForm,RepartidorCreateForm,RepartidorUserForm
+    RepartidorProfileForm,RepartidorCreateForm,RepartidorUserForm,ResenaForm
 )
-from .models import Carrito, Producto, Usuario, Categoria, ItemCarrito, Pedido, Slide,MetodoPago, DetallePedido,Reclamo,Repartidor
+from .models import Carrito, Producto, Usuario, Categoria, ItemCarrito, Pedido, Slide,MetodoPago, DetallePedido,Reclamo,Repartidor,Resena
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -1791,3 +1791,71 @@ def webpay_cancelar(request):
     
     messages.warning(request, 'Has cancelado el pago. Tu pedido no fue procesado.')
     return redirect('ver_carrito')
+
+# ========== GESTIÓN DE RESEÑAS ==========
+
+@login_required
+def crear_resena_view(request, producto_id):
+    """Vista para que un cliente cree una reseña"""
+    if request.user.rol != 'cliente':
+        messages.error(request, 'Solo los clientes pueden dejar reseñas.')
+        return redirect('catalogo_productos')
+    
+    producto = get_object_or_404(Producto, pk=producto_id, activo=True)
+    
+    # NUEVO: Obtener el pedido de origen (si viene de mis_pedidos)
+    pedido_id = request.GET.get('pedido')
+    pedido_origen = None
+    if pedido_id:
+        try:
+            pedido_origen = Pedido.objects.get(pk=pedido_id, cliente=request.user)
+        except Pedido.DoesNotExist:
+            pass
+    
+    # Verificar si ya dejó una reseña
+    resena_existente = Resena.objects.filter(
+        producto=producto,
+        cliente=request.user
+    ).first()
+    
+    if resena_existente:
+        messages.warning(request, 'Ya has dejado una reseña para este producto.')
+        # NUEVO: Si viene de un pedido, redirigir a mis_pedidos
+        if pedido_origen:
+            return redirect('mis_pedidos')
+        return redirect('catalogo_productos')
+    
+    # Verificar si compró el producto
+    ha_comprado = DetallePedido.objects.filter(
+        pedido__cliente=request.user,
+        pedido__estado='entregado',
+        producto=producto
+    ).exists()
+    
+    if request.method == 'POST':
+        form = ResenaForm(request.POST)
+        if form.is_valid():
+            resena = form.save(commit=False)
+            resena.producto = producto
+            resena.cliente = request.user
+            resena.compra_verificada = ha_comprado
+            resena.save()
+            
+            messages.success(request, '¡Gracias por tu reseña!')
+            # NUEVO: Si viene de un pedido, redirigir a mis_pedidos
+            if pedido_origen:
+                return redirect('mis_pedidos')
+            return redirect('catalogo_productos')
+        else:
+            messages.error(request, 'Por favor corrige los errores en el formulario.')
+    else:
+        form = ResenaForm()
+    
+    contexto = {
+        'form': form,
+        'producto': producto,
+        'ha_comprado': ha_comprado,
+        'pedido_origen': pedido_origen,  # NUEVO: Pasar el pedido al template
+        'titulo': f'Reseñar: {producto.nombre}'
+    }
+    return render(request, 'core/cliente/crear_resena.html', contexto)

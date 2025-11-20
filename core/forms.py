@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from .models import Usuario, Producto,Repartidor,Reclamo
+from .models import Usuario, Producto,Repartidor,Reclamo,Resena
 from django.core.exceptions import ValidationError
 import re
 
@@ -191,12 +191,12 @@ class ResetPasswordForm(forms.Form):
 class ProductoForm(forms.ModelForm):
     class Meta:
         model = Producto
-        fields = [ 'nombre', 'descripcion', 'precio', 'imagen', 'stock', 'categoria', 'activo', 'en_promocion' ]
+        fields = [ 'nombre','sku', 'descripcion', 'precio', 'imagen', 'stock', 'categoria', 'activo', 'en_promocion' ]
         widgets = {
                 'nombre': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
+                'sku': forms.TextInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'placeholder': 'SKU/Código de Barras (Opcional)'}),
                 'descripcion': forms.Textarea(attrs={'class': TAILWIND_TEXTAREA_CLASSES, 'rows': 3}),
                 'precio': forms.NumberInput(attrs={'class': TAILWIND_INPUT_CLASSES, 'step': '0.01'}),
-                # Nota: El widget para un ImageField/FileField es FileInput
                 'imagen': forms.FileInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
                 'stock': forms.NumberInput(attrs={'class': TAILWIND_INPUT_CLASSES}),
                 'categoria':forms.Select(attrs={'class': TAILWIND_SELECT_CLASSES}),
@@ -287,3 +287,36 @@ class ReclamoForm(forms.ModelForm):
             'motivo': forms.Select(attrs={'class': 'w-full border border-gray-300 rounded-lg p-2'}),
             'descripcion': forms.Textarea(attrs={'class': 'w-full border border-gray-300 rounded-lg p-2', 'rows': 4}),
         }
+
+class ResenaForm(forms.ModelForm):
+    """Formulario para crear/editar reseñas de productos"""
+    
+    calificacion = forms.ChoiceField(
+        label='Calificación',
+        choices=[(i, f"{i} {'⭐' * i}") for i in range(1, 6)],
+        widget=forms.RadioSelect(attrs={
+            'class': 'flex gap-2'
+        }),
+        help_text='Selecciona tu calificación'
+    )
+    
+    comentario = forms.CharField(
+        label='Comentario (opcional)',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': TAILWIND_TEXTAREA_CLASSES,
+            'rows': 4,
+            'placeholder': 'Cuéntanos tu experiencia con este producto...'
+        })
+    )
+    
+    class Meta:
+        model = Resena
+        fields = ['calificacion', 'comentario']
+    
+    def clean_comentario(self):
+        """Validar longitud del comentario"""
+        comentario = self.cleaned_data.get('comentario', '')
+        if comentario and len(comentario) < 10:
+            raise ValidationError('El comentario debe tener al menos 10 caracteres.')
+        return comentario

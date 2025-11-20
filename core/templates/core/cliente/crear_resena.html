@@ -1,0 +1,116 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="bg-white rounded-lg shadow-lg p-8">
+        <!-- Encabezado -->
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Deja tu reseña</h1>
+            <p class="text-gray-600">Cuéntanos tu experiencia con este producto</p>
+        </div>
+
+        <!-- NUEVO: Breadcrumb para contexto -->
+        {% if pedido_origen %}
+        <div class="mb-6 flex items-center gap-2 text-sm text-gray-600">
+            <a href="{% url 'mis_pedidos' %}" class="hover:text-primary transition">
+                <i class="fas fa-box mr-1"></i>Mis Pedidos
+            </a>
+            <i class="fas fa-chevron-right text-xs"></i>
+            <span class="text-gray-800 font-medium">Pedido #{{ pedido_origen.numero_pedido }}</span>
+            <i class="fas fa-chevron-right text-xs"></i>
+            <span class="text-gray-400">Reseña</span>
+        </div>
+        {% endif %}
+
+        <!-- Información del Producto -->
+        <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg mb-6">
+            {% if producto.imagen %}
+                <img src="{{ producto.imagen.url }}" alt="{{ producto.nombre }}" 
+                     class="w-20 h-20 object-cover rounded-lg">
+            {% else %}
+                <div class="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-image text-gray-400 text-2xl"></i>
+                </div>
+            {% endif %}
+            <div>
+                <h3 class="font-semibold text-lg">{{ producto.nombre }}</h3>
+                <p class="text-gray-600">${{ producto.precio|floatformat:0 }}</p>
+            </div>
+        </div>
+
+        <!-- Verificación de Compra -->
+        {% if ha_comprado %}
+        <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-6 flex items-center gap-2">
+            <i class="fas fa-check-circle text-green-600"></i>
+            <span class="text-green-700 text-sm font-medium">Compra Verificada</span>
+        </div>
+        {% else %}
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6 flex items-center gap-2">
+            <i class="fas fa-info-circle text-yellow-600"></i>
+            <span class="text-yellow-700 text-sm">No has comprado este producto, pero igual puedes reseñarlo</span>
+        </div>
+        {% endif %}
+
+        <!-- Formulario -->
+        <form method="POST" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Calificación -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-3">
+                    {{ form.calificacion.label }}
+                </label>
+                <div class="flex gap-4">
+                    {% for choice in form.calificacion %}
+                        <label class="cursor-pointer hover:scale-110 transition-transform">
+                            {{ choice.tag }}
+                            <span class="ml-1 text-2xl">{{ choice.choice_label }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+                {% if form.calificacion.errors %}
+                    <p class="text-red-500 text-sm mt-1">{{ form.calificacion.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Comentario -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.comentario.label }}
+                </label>
+                {{ form.comentario }}
+                <p class="text-gray-500 text-sm mt-1">{{ form.comentario.help_text }}</p>
+                {% if form.comentario.errors %}
+                    <p class="text-red-500 text-sm mt-1">{{ form.comentario.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Botones (ACTUALIZADO) -->
+            <div class="flex gap-3 pt-4">
+                <button type="submit" 
+                        class="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-dark transition flex items-center gap-2">
+                    <i class="fas fa-paper-plane"></i>
+                    Enviar Reseña
+                </button>
+                
+                <!-- NUEVO: Botón dinámico según origen -->
+                {% if pedido_origen %}
+                    <a href="{% url 'mis_pedidos' %}" 
+                       class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition flex items-center gap-2">
+                        <i class="fas fa-arrow-left"></i>
+                        Volver a Mis Pedidos
+                    </a>
+                {% else %}
+                    <a href="{% url 'catalogo_productos' %}" 
+                       class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition">
+                        Cancelar
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

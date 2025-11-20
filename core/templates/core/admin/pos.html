@@ -60,6 +60,29 @@
         background: #28a745;
     }
     
+    /* NUEVO: Badge de SKU */
+    .sku-badge {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        background: #6c757d;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 500;
+        font-family: 'Courier New', monospace;
+        z-index: 10;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+    
+    /* NUEVO: Highlight para coincidencia de SKU */
+    .product-card-pos.sku-match {
+        border-color: #198754 !important;
+        background: #d1e7dd !important;
+        animation: pulseGreen 0.6s ease;
+    }
+    
     /* Items del Pedido */
     .order-item-card {
         background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
@@ -174,7 +197,11 @@
     .btn-remove-item:hover { transform: rotate(90deg) scale(1.1); background: #dc3545; color: white; }
     
     /* Efecto Visual */
-    @keyframes pulseGreen { 0% { background-color: #d4edda; } 100% { background-color: white; } }
+    @keyframes pulseGreen { 
+        0% { background-color: #d1e7dd; transform: scale(1); } 
+        50% { background-color: #a3cfbb; transform: scale(1.02); }
+        100% { background-color: #d1e7dd; transform: scale(1); } 
+    }
     .product-added { animation: pulseGreen 0.4s ease; }
     
     /* Toast Notifications */
@@ -251,7 +278,11 @@
         <div class="card table-card h-100">
             <div class="card-header bg-white border-0 py-3">
                 <h5 class="card-title mb-3"><i class="fas fa-shopping-bag text-primary me-2"></i>Seleccionar Productos</h5>
-                <input type="text" id="product-search-pos" class="form-control mb-3" placeholder="🔍 Buscar producto por nombre...">
+                
+                <!-- CAMBIO: Placeholder actualizado -->
+                <input type="text" id="product-search-pos" class="form-control mb-3" 
+                       placeholder="🔍 Buscar producto por nombre o código SKU...">
+                
                 <div id="category-filter-pos" class="btn-group flex-wrap" role="group">
                     <input type="radio" class="btn-check" name="category-filter" id="cat-all-pos" value="all" autocomplete="off" checked>
                     <label class="btn btn-sm btn-outline-primary rounded-pill px-3 me-2 mb-2" for="cat-all-pos">
@@ -268,9 +299,20 @@
             <div class="card-body p-0">
                 <div id="product-list-pos" class="row g-3 p-3">
                     {% for producto in productos_pos %}
-                        <div class="col-md-6 product-container" data-name="{{ producto.nombre|lower }}" data-category="{{ producto.categoria.nombre|lower|default:'' }}">
+                        <!-- CAMBIO: Agregamos data-sku y data-product-id -->
+                        <div class="col-md-6 product-container" 
+                             data-name="{{ producto.nombre|lower }}" 
+                             data-category="{{ producto.categoria.nombre|lower|default:'' }}"
+                             data-sku="{{ producto.sku|lower|default:'' }}"
+                             data-product-id="{{ producto.id }}">
                             <div class="product-card-pos {% if producto.stock == 0 %}no-stock{% endif %}" 
                                  onclick="{% if producto.stock > 0 %}addItem({{ producto.id }}, '{{ producto.nombre|escapejs }}', {{ producto.precio }}, {{ producto.stock }}, this){% else %}showToast('El producto <strong>{{ producto.nombre|escapejs }}</strong> no tiene stock disponible en este momento.<br>Por favor, selecciona otro producto.', 'danger', 'Sin Stock'){% endif %}">
+                                
+                                <!-- NUEVO: Badge de SKU (si existe) -->
+                                {% if producto.sku %}
+                                    <span class="sku-badge">{{ producto.sku }}</span>
+                                {% endif %}
+                                
                                 {% if producto.stock > 0 %}
                                     <span class="stock-badge in-stock">Stock: {{ producto.stock }}</span>
                                 {% else %}
@@ -528,14 +570,84 @@
         }, 500);
     }
 
+    // ============ FUNCIÓN MODIFICADA: filterProducts ============
     function filterProducts() {
-        const search = els.search.value.toLowerCase();
+        const search = els.search.value.toLowerCase().trim();
         const category = els.filter.querySelector('input:checked')?.value || 'all';
-        els.list.querySelectorAll('.product-container').forEach(c => {
-            const name = c.getAttribute('data-name'), cat = c.getAttribute('data-Gategory');
-            c.style.display = (name?.includes(search) && (category === 'all' || cat === category)) ? '' : 'none';
+        
+        // Remover highlights previos
+        document.querySelectorAll('.product-card-pos.sku-match').forEach(card => {
+            card.classList.remove('sku-match');
+        });
+        
+        let skuMatchFound = false;
+        
+        els.list.querySelectorAll('.product-container').forEach(container => {
+            const name = container.getAttribute('data-name') || '';
+            const cat = container.getAttribute('data-category') || '';
+            const sku = container.getAttribute('data-sku') || '';
+            
+            // Verificar si hay coincidencia exacta con SKU
+            const isSkuExactMatch = sku && sku === search;
+            
+            // Verificar si coincide con nombre o SKU (parcial)
+            const matchesSearch = !search || name.includes(search) || sku.includes(search);
+            const matchesCategory = category === 'all' || cat === category;
+            
+            if (matchesSearch && matchesCategory) {
+                container.style.display = '';
+                
+                // Si es coincidencia exacta con SKU, destacar y agregar automáticamente
+                if (isSkuExactMatch && !skuMatchFound) {
+                    const card = container.querySelector('.product-card-pos');
+                    card.classList.add('sku-match');
+                    skuMatchFound = true;
+                    
+                    // Auto-agregar el producto si tiene stock
+                    if (!card.classList.contains('no-stock')) {
+                        const productId = container.getAttribute('data-product-id');
+                        
+                        // Obtener precio y stock del producto
+                        const priceElement = card.querySelector('.product-price');
+                        const stockBadge = card.querySelector('.stock-badge.in-stock');
+                        
+                        if (priceElement && stockBadge) {
+                            const price = parseFloat(priceElement.textContent.replace('$', '').replace(',', ''));
+                            const stockText = stockBadge.textContent;
+                            const stock = parseInt(stockText.match(/\d+/)[0]);
+                            
+                            // Agregar el producto automáticamente
+                            setTimeout(() => {
+                                addItem(productId, name, price, stock, card);
+                                
+                                // Limpiar búsqueda después de agregar
+                                setTimeout(() => {
+                                    els.search.value = '';
+                                    filterProducts();
+                                }, 500);
+                            }, 100);
+                        }
+                    } else {
+                        showToast(
+                            `El producto con código <strong>${sku.toUpperCase()}</strong> no tiene stock disponible.`,
+                            'warning',
+                            'Sin Stock'
+                        );
+                        setTimeout(() => {
+                            els.search.value = '';
+                            filterProducts();
+                        }, 1500);
+                    }
+                    
+                    // Scroll al producto encontrado
+                    container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } else {
+                container.style.display = 'none';
+            }
         });
     }
+    // ============ FIN FUNCIÓN MODIFICADA ============
 
     els.search.addEventListener('keyup', filterProducts);
     els.filter.addEventListener('change', filterProducts);

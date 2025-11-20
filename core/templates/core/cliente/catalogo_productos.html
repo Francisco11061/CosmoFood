@@ -42,7 +42,7 @@
                         {% elif cat.nombre == "Sandwiches" or cat.nombre == "Sándwiches" %}
                             🥪
                         {% elif cat.nombre == "Tacos" %}
-                            
+                            🌮
                         {% elif cat.nombre == "Sushi" %}
                             🍣
                         {% else %}
@@ -162,6 +162,20 @@
                             <!-- Contenido del card -->
                             <div class="p-5 flex flex-col flex-grow">
                                 <h5 class="text-xl font-bold text-gray-800 mb-2">{{ producto.nombre }}</h5>
+                                
+                                <!-- ⭐ NUEVO: Calificación -->
+                                <div class="flex items-center gap-2 mb-3">
+                                    <div class="text-yellow-500">
+                                        {{ producto.estrellas_html|safe }}
+                                    </div>
+                                    <span class="text-sm font-semibold text-gray-700">
+                                        {{ producto.calificacion_promedio }}
+                                    </span>
+                                    <span class="text-xs text-gray-500">
+                                        ({{ producto.total_resenas }})
+                                    </span>
+                                </div>
+                                
                                 <p class="text-gray-600 text-sm mb-4">{{ producto.descripcion|truncatewords:15 }}</p>
                                 
                                 <!-- Precio -->
@@ -195,54 +209,155 @@
                             </div>
                         </div>
                         
-                        <!-- Modal Ver Producto -->
+                        <!-- ⭐ MODAL ACTUALIZADO CON RESEÑAS -->
                         <div id="modal-producto-{{ producto.id }}" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4" style="display: none;">
-                            <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-fade-in">
+                            <div class="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto animate-fade-in">
+                                <!-- Header del Modal -->
                                 <div class="sticky top-0 bg-gradient-to-r from-primary to-secondary text-white p-4 flex justify-between items-center rounded-t-2xl z-10">
                                     <h3 class="text-2xl font-bold">{{ producto.nombre }}</h3>
                                     <button onclick="cerrarModal{{ producto.id }}()" class="text-white hover:text-gray-200 text-3xl leading-none">
                                         <i class="fas fa-times"></i>
                                     </button>
                                 </div>
-                                <div class="p-6">
-                                    {% if producto.imagen %}
-                                        <img src="{{ producto.imagen.url }}" class="w-full h-64 object-cover rounded-xl mb-4" alt="{{ producto.nombre }}">
-                                    {% else %}
-                                        <img src="{% static 'core/img/placeholder.svg' %}" class="w-full h-64 object-cover rounded-xl mb-4" alt="Imagen no disponible">
-                                    {% endif %}
+                                
+                                <!-- Body del Modal -->
+                                <div class="p-6 space-y-6">
                                     
-                                    <div class="space-y-4">
+                                    <!-- Sección Principal: Imagen e Info -->
+                                    <div class="grid md:grid-cols-2 gap-6">
+                                        <!-- Imagen -->
                                         <div>
-                                            <h4 class="text-lg font-bold text-gray-800 mb-2">Descripción</h4>
-                                            <p class="text-gray-600">{{ producto.descripcion }}</p>
+                                            {% if producto.imagen %}
+                                                <img src="{{ producto.imagen.url }}" class="w-full h-80 object-cover rounded-xl shadow-lg" alt="{{ producto.nombre }}">
+                                            {% else %}
+                                                <img src="{% static 'core/img/placeholder.svg' %}" class="w-full h-80 object-cover rounded-xl shadow-lg" alt="Imagen no disponible">
+                                            {% endif %}
                                         </div>
                                         
-                                        <div class="flex justify-between items-center py-4 border-t border-b">
-                                            <span class="text-gray-700 font-semibold">Categoría:</span>
-                                            <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">{{ producto.categoria.nombre }}</span>
-                                        </div>
-                                        
-                                        <div class="flex justify-between items-center">
-                                            <span class="text-gray-700 font-semibold">Stock disponible:</span>
-                                            <span class="text-gray-800 font-bold">{{ producto.stock }} unidades</span>
-                                        </div>
-                                        
-                                        <div class="bg-gray-50 p-4 rounded-lg">
-                                            <div class="flex justify-between items-center">
-                                                <span class="text-2xl font-bold text-gray-800">Precio:</span>
-                                                <span class="text-4xl font-bold text-primary">${{ producto.precio|floatformat:0 }}</span>
+                                        <!-- Información Principal -->
+                                        <div class="space-y-4">
+                                            <!-- Calificación Destacada -->
+                                            <div class="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+                                                <div class="flex items-center gap-3 mb-2">
+                                                    <div class="text-3xl">
+                                                        {{ producto.estrellas_html|safe }}
+                                                    </div>
+                                                    <span class="text-3xl font-bold text-gray-800">
+                                                        {{ producto.calificacion_promedio }}
+                                                    </span>
+                                                </div>
+                                                <p class="text-sm text-gray-600">
+                                                    <i class="fas fa-users mr-1"></i>
+                                                    {{ producto.total_resenas }} opinión{{ producto.total_resenas|pluralize:"es" }}
+                                                </p>
                                             </div>
+                                            
+                                            <!-- Descripción -->
+                                            <div>
+                                                <h4 class="text-lg font-bold text-gray-800 mb-2">Descripción</h4>
+                                                <p class="text-gray-600 leading-relaxed">{{ producto.descripcion }}</p>
+                                            </div>
+                                            
+                                            <!-- Categoría y Stock -->
+                                            <div class="space-y-2">
+                                                <div class="flex justify-between items-center py-3 border-t border-b">
+                                                    <span class="text-gray-700 font-semibold">Categoría:</span>
+                                                    <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">
+                                                        {{ producto.categoria.nombre }}
+                                                    </span>
+                                                </div>
+                                                
+                                                <div class="flex justify-between items-center">
+                                                    <span class="text-gray-700 font-semibold">Stock disponible:</span>
+                                                    <span class="text-gray-800 font-bold">{{ producto.stock }} unidades</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Precio -->
+                                            <div class="bg-gradient-to-br from-orange-50 to-red-50 p-4 rounded-lg border-2 border-primary">
+                                                <div class="flex justify-between items-center">
+                                                    <span class="text-xl font-bold text-gray-800">Precio:</span>
+                                                    <span class="text-4xl font-bold text-primary">${{ producto.precio|floatformat:0 }}</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Botón Agregar -->
+                                            {% if request.user.is_authenticated %}
+                                                <form action="{% url 'agregar_al_carrito' %}" method="post">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="product_id" value="{{ producto.id }}">
+                                                    <button type="submit" class="w-full bg-primary hover:bg-primary-dark text-white font-bold py-4 rounded-lg transition duration-200 text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-xl">
+                                                        <i class="fas fa-cart-plus"></i> Agregar al Carrito
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Sección de Reseñas -->
+                                    <div class="border-t-2 border-gray-200 pt-6">
+                                        <div class="flex justify-between items-center mb-6">
+                                            <h3 class="text-2xl font-bold text-gray-800">
+                                                <i class="fas fa-star text-yellow-500 mr-2"></i>
+                                                Opiniones de Clientes
+                                            </h3>
                                         </div>
                                         
-                                        {% if request.user.is_authenticated %}
-                                            <form action="{% url 'agregar_al_carrito' %}" method="post">
-                                                {% csrf_token %}
-                                                <input type="hidden" name="product_id" value="{{ producto.id }}">
-                                                <button type="submit" class="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-4 rounded-lg transition duration-200 text-lg flex items-center justify-center gap-2">
-                                                    <i class="fas fa-cart-plus"></i> Agregar al Carrito
-                                                </button>
-                                            </form>
+                                        <!-- Mostrar últimas 3 reseñas -->
+                                        {% with resenas=producto.resenas.all|slice:":3" %}
+                                        {% if resenas %}
+                                            <div class="space-y-4 mb-4">
+                                                {% for resena in resenas %}
+                                                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                                    <div class="flex items-start gap-3">
+                                                        <div class="w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                                                            {{ resena.cliente.first_name|first|upper }}{{ resena.cliente.last_name|first|upper }}
+                                                        </div>
+                                                        <div class="flex-grow">
+                                                            <div class="flex justify-between items-start mb-2">
+                                                                <div>
+                                                                    <div class="font-bold text-gray-800">
+                                                                        {{ resena.cliente.get_full_name|default:resena.cliente.username }}
+                                                                    </div>
+                                                                    <div class="text-yellow-500 text-lg">
+                                                                        {% if resena.calificacion == 5 %}⭐⭐⭐⭐⭐{% endif %}
+                                                                        {% if resena.calificacion == 4 %}⭐⭐⭐⭐{% endif %}
+                                                                        {% if resena.calificacion == 3 %}⭐⭐⭐{% endif %}
+                                                                        {% if resena.calificacion == 2 %}⭐⭐{% endif %}
+                                                                        {% if resena.calificacion == 1 %}⭐{% endif %}
+                                                                    </div>
+                                                                </div>
+                                                                {% if resena.compra_verificada %}
+                                                                    <span class="bg-green-100 text-green-700 text-xs font-semibold px-2 py-1 rounded-full flex items-center gap-1">
+                                                                        <i class="fas fa-check-circle"></i>
+                                                                        Verificado
+                                                                    </span>
+                                                                {% endif %}
+                                                            </div>
+                                                            {% if resena.comentario %}
+                                                                <p class="text-gray-700 text-sm">{{ resena.comentario|truncatewords:20 }}</p>
+                                                            {% endif %}
+                                                            <p class="text-xs text-gray-500 mt-2">{{ resena.fecha_creacion|date:"d/m/Y" }}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            
+                                            {% if producto.total_resenas > 3 %}
+                                                <p class="text-center text-gray-600 text-sm">
+                                                    <i class="fas fa-ellipsis-h"></i>
+                                                    Y {{ producto.total_resenas|add:"-3" }} opinión{{ producto.total_resenas|add:"-3"|pluralize:"es" }} más
+                                                </p>
+                                            {% endif %}
+                                        {% else %}
+                                            <div class="text-center py-8 bg-gray-50 rounded-lg">
+                                                <i class="fas fa-comment-slash text-gray-300 text-4xl mb-3"></i>
+                                                <p class="text-gray-500">Aún no hay opiniones para este producto</p>
+                                                <p class="text-sm text-gray-400 mt-1">¡Sé el primero en compartir tu experiencia!</p>
+                                            </div>
                                         {% endif %}
+                                        {% endwith %}
                                     </div>
                                 </div>
                             </div>

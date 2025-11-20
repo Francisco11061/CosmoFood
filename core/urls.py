@@ -62,5 +62,6 @@ urlpatterns = [
     path('webpay/iniciar/<int:pedido_id>/', views.webpay_iniciar_pago, name='webpay_iniciar_pago'),
     path('webpay/retorno/', views.webpay_retorno, name='webpay_retorno'),
     path('webpay/cancelar/', views.webpay_cancelar, name='webpay_cancelar'),
-
+    # Detalle de producto y reseñas
+    path('productos/<int:producto_id>/resenar/', views.crear_resena_view, name='crear_resena'),
 ]

@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db.models import Avg
 
 class Usuario(AbstractUser):
       ROLES = [
@@ -41,6 +43,7 @@ class Categoria(models.Model):
 
 class Producto(models.Model):
       nombre = models.CharField(max_length=100, unique=True)
+      sku = models.CharField(max_length=50, unique=True,null=True,blank=True,verbose_name='SKU/Código de Barras (Opcional)',help_text='Solo para ventas POS. Escanea el código o escribelo')
       descripcion = models.CharField(max_length=500, blank=True, null=True)
       precio = models.DecimalField(max_digits=10, decimal_places= 2)
       imagen = models.ImageField(upload_to='productos/', blank=True, null=True)
@@ -61,6 +64,31 @@ class Producto(models.Model):
       def disponible(self):
             """Verifica si el producto está disponible para la venta"""
             return self.activo and self.stock > 0
+      @property
+      def calificacion_promedio(self):
+        """Calcula el promedio de calificaciones (0-5)"""
+        promedio = self.resenas.aggregate(Avg('calificacion'))['calificacion__avg']
+        return round(promedio, 1) if promedio else 0
+    
+      @property
+      def total_resenas(self):
+        """Cuenta total de reseñas"""
+        return self.resenas.count()
+    
+      @property
+      def estrellas_html(self):
+        """Devuelve estrellas en formato HTML para templates"""
+        calificacion = self.calificacion_promedio
+        estrellas_completas = int(calificacion)
+        tiene_media = (calificacion - estrellas_completas) >= 0.5
+        estrellas_vacias = 5 - estrellas_completas - (1 if tiene_media else 0)
+        
+        html = "⭐" * estrellas_completas
+        if tiene_media:
+            html += "✨"
+        html += "☆" * estrellas_vacias
+        
+        return html
 
 class Repartidor(models.Model):
     usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, related_name='perfil_repartidor')
@@ -288,3 +316,55 @@ class Slide(models.Model):
 
       def __str__(self):
             return self.titulo or f"Slide {self.id}"
+      
+class Resena(models.Model):
+    """Modelo para reseñas y calificaciones de productos"""
+    producto = models.ForeignKey(
+        Producto, 
+        on_delete=models.CASCADE, 
+        related_name='resenas'
+    )
+    cliente = models.ForeignKey(
+        Usuario, 
+        on_delete=models.CASCADE,
+        limit_choices_to={'rol': 'cliente'}  # Solo clientes pueden reseñar
+    )
+    calificacion = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="Calificación de 1 a 5 estrellas"
+    )
+    comentario = models.TextField(
+        blank=True, 
+        null=True,
+        help_text="Comentario opcional sobre el producto"
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    
+    # Verificar si el cliente realmente compró el producto
+    compra_verificada = models.BooleanField(
+        default=False,
+        help_text="Indica si el cliente compró el producto"
+    )
+    
+    class Meta:
+        verbose_name = 'Reseña'
+        verbose_name_plural = 'Reseñas'
+        unique_together = ['producto', 'cliente']  # Un cliente solo 1 reseña por producto
+        ordering = ['-fecha_creacion']
+        indexes = [
+            models.Index(fields=['producto', '-fecha_creacion']),
+        ]
+    
+    def __str__(self):
+        estrellas = "⭐" * self.calificacion
+        return f"{self.cliente.username} - {self.producto.nombre} ({estrellas})"
+    
+    def save(self, *args, **kwargs):
+        """Verificar automáticamente si el cliente compró el producto"""
+        if not self.pk:  # Solo al crear
+            self.compra_verificada = DetallePedido.objects.filter(
+                pedido__cliente=self.cliente,
+                pedido__estado='entregado',
+                producto=self.producto
+            ).exists()
+        super().save(*args, **kwargs)
