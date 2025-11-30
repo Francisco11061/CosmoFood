@@ -13,7 +13,6 @@ from .forms import (
     RepartidorProfileForm,RepartidorCreateForm,RepartidorUserForm,ResenaForm
 )
 from .models import Carrito, Producto, Usuario, Categoria, ItemCarrito, Pedido, Slide,MetodoPago, DetallePedido,Reclamo,Repartidor,Resena
-from django.contrib.auth.hashers import make_password
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
@@ -252,8 +251,17 @@ def editar_perfil_view(request):
 
 @login_required
 def mis_pedidos_view(request):
-    """Vista para que el usuario vea su historial de pedidos."""
-    pedidos = Pedido.objects.filter(cliente=request.user).prefetch_related('detalles', 'detalles__producto').order_by('-fecha_creacion')
+    """Vista para que el usuario vea su historial de pedidos (excluyendo cancelados)."""
+    
+    pedidos = Pedido.objects.filter(
+        cliente=request.user
+    ).exclude(
+        estado__in=['cancelado', 'pendiente']  # No mostrar cancelados ni pendientes
+    ).prefetch_related(
+        'detalles', 
+        'detalles__producto',
+        'detalles__producto__resenas'
+    ).order_by('-fecha_creacion')
     
     contexto = {
         'pedidos': pedidos
@@ -1181,6 +1189,8 @@ def repartidor_pedidos_view(request):
     return render(request, 'core/repartidor/repartidor_pedidos.html', contexto)
 
 #Logica del pago con pasarela de pago (HU16, HU17) 
+# En views.py - Modificar checkout_view
+
 @login_required
 @transaction.atomic
 def checkout_view(request):
@@ -1213,7 +1223,14 @@ def checkout_view(request):
             messages.error(request, 'Método de pago no válido.')
             return redirect('checkout')
 
-        # Crear el Pedido (siempre como PENDIENTE si es Webpay)
+        # ✨ CAMBIO CRÍTICO: Validar stock ANTES de crear el pedido
+        for item in items:
+            producto = Producto.objects.select_for_update().get(pk=item.producto.pk)
+            if producto.stock < item.cantidad:
+                messages.error(request, f'No hay suficiente stock para {producto.nombre}.')
+                return redirect('ver_carrito')
+
+        # Crear el Pedido (PENDIENTE para Webpay, CONFIRMADO para otros)
         estado_inicial = 'pendiente' if metodo_pago.tipo == 'webpay' else 'confirmado'
         
         nuevo_pedido = Pedido.objects.create(
@@ -1228,37 +1245,38 @@ def checkout_view(request):
             total=carrito.total_precio
         )
 
-        # Crear Detalles del Pedido y Descontar Stock
-        for item in items:
-            producto = Producto.objects.select_for_update().get(pk=item.producto.pk)
-
-            if producto.stock < item.cantidad:
-                messages.error(request, f'No hay suficiente stock para {producto.nombre}.')
-                return redirect('ver_carrito')
-
-            DetallePedido.objects.create(
-                pedido=nuevo_pedido,
-                producto=producto,
-                cantidad=item.cantidad,
-                precio_unitario=producto.precio
-            )
-
-            producto.stock -= item.cantidad
-            producto.save()
-
-        # Limpiar el carrito
-        carrito.items.all().delete()
-
-        # ✨ DECISIÓN: ¿Es Webpay o pago directo?
-        if metodo_pago.tipo == 'webpay':
-            # Redirigir al flujo de Webpay
-            return redirect('webpay_iniciar_pago', pedido_id=nuevo_pedido.id)
-        else:
-            # Pago directo (efectivo, transferencia, etc.)
+        # ✨ CAMBIO CRÍTICO: Solo crear detalles y descontar stock si NO es Webpay
+        if metodo_pago.tipo != 'webpay':
+            for item in items:
+                producto = Producto.objects.select_for_update().get(pk=item.producto.pk)
+                
+                DetallePedido.objects.create(
+                    pedido=nuevo_pedido,
+                    producto=producto,
+                    cantidad=item.cantidad,
+                    precio_unitario=producto.precio
+                )
+                
+                producto.stock -= item.cantidad
+                producto.save()
+            
+            # Limpiar carrito solo para pagos directos
+            carrito.items.all().delete()
             nuevo_pedido.fecha_confirmacion = timezone.now()
             nuevo_pedido.save()
             messages.success(request, '¡Tu pedido ha sido recibido con éxito!')
             return redirect('pedido_confirmado', pk=nuevo_pedido.pk)
+        else:
+            # Para Webpay: Solo guardar items en sesión temporalmente
+            items_data = []
+            for item in items:
+                items_data.append({
+                    'producto_id': item.producto.id,
+                    'cantidad': item.cantidad,
+                    'precio': float(item.producto.precio)
+                })
+            request.session['webpay_items_temp'] = items_data
+            return redirect('webpay_iniciar_pago', pedido_id=nuevo_pedido.id)
 
     else:
         contexto = {
@@ -1710,8 +1728,7 @@ def webpay_iniciar_pago(request, pedido_id):
 @login_required
 def webpay_retorno(request):
     """
-    Vista "portero" que recibe al usuario cuando vuelve de Webpay.
-    Aquí confirmamos si el pago fue exitoso.
+    Vista que recibe confirmación de Webpay y descuenta stock SOLO si el pago fue exitoso.
     """
     token_ws = request.GET.get('token_ws')
     
@@ -1719,7 +1736,6 @@ def webpay_retorno(request):
         messages.error(request, 'No se recibió confirmación del pago.')
         return redirect('mis_pedidos')
     
-    # Verificar que el token coincide con el de la sesión
     token_sesion = request.session.get('webpay_token')
     pedido_id = request.session.get('webpay_pedido_id')
     
@@ -1728,7 +1744,6 @@ def webpay_retorno(request):
         return redirect('mis_pedidos')
     
     try:
-        # Configurar opciones de Webpay
         if settings.WEBPAY_ENVIRONMENT == 'TEST':
             options = WebpayOptions(
                 commerce_code=settings.WEBPAY_COMMERCE_CODE,
@@ -1742,27 +1757,78 @@ def webpay_retorno(request):
                 integration_type=IntegrationType.LIVE
             )
         
-        # Confirmar transacción
         tx = Transaction(options)
         response = tx.commit(token_ws)
         
         logger.info(f"Respuesta Webpay: {response}")
         
-        # Verificar si el pago fue aprobado
+        # ✨ CAMBIO CRÍTICO: Descontar stock SOLO si el pago fue aprobado
         if response['status'] == 'AUTHORIZED' and response['response_code'] == 0:
+            with transaction.atomic():
+                pedido = Pedido.objects.select_for_update().get(pk=pedido_id)
+                
+                # Obtener items de la sesión
+                items_temp = request.session.get('webpay_items_temp', [])
+                
+                if not items_temp:
+                    messages.error(request, 'Error: No se encontraron los productos del pedido.')
+                    return redirect('ver_carrito')
+                
+                # Crear detalles y descontar stock
+                for item_data in items_temp:
+                    producto = Producto.objects.select_for_update().get(pk=item_data['producto_id'])
+                    cantidad = item_data['cantidad']
+                    
+                    # Validar stock nuevamente (por si cambió mientras pagaba)
+                    if producto.stock < cantidad:
+                        pedido.estado = 'cancelado'
+                        pedido.save()
+                        messages.error(request, f'Lo sentimos, ya no hay stock suficiente de {producto.nombre}.')
+                        # Limpiar sesión
+                        del request.session['webpay_token']
+                        del request.session['webpay_pedido_id']
+                        del request.session['webpay_items_temp']
+                        return redirect('ver_carrito')
+                    
+                    DetallePedido.objects.create(
+                        pedido=pedido,
+                        producto=producto,
+                        cantidad=cantidad,
+                        precio_unitario=item_data['precio']
+                    )
+                    
+                    producto.stock -= cantidad
+                    producto.save()
+                
+                # Actualizar pedido a confirmado
+                pedido.estado = 'confirmado'
+                pedido.fecha_confirmacion = timezone.now()
+                pedido.save()
+                
+                # Limpiar carrito del usuario
+                carrito = request.user.carrito
+                carrito.items.all().delete()
+                
+                # Limpiar sesión
+                del request.session['webpay_token']
+                del request.session['webpay_pedido_id']
+                del request.session['webpay_items_temp']
+                
+                messages.success(request, '¡Pago exitoso! Tu pedido ha sido confirmado.')
+                return redirect('pedido_confirmado', pk=pedido.id)
+        else:
+            # ✨ Pago rechazado: NO descontar stock
             pedido = Pedido.objects.get(pk=pedido_id)
-            pedido.estado = 'confirmado'
-            pedido.fecha_confirmacion = timezone.now()
+            pedido.estado = 'cancelado'
             pedido.save()
             
-            # Limpiar la sesión
+            # Limpiar sesión
             del request.session['webpay_token']
             del request.session['webpay_pedido_id']
+            if 'webpay_items_temp' in request.session:
+                del request.session['webpay_items_temp']
             
-            messages.success(request, '¡Pago exitoso! Tu pedido ha sido confirmado.')
-            return redirect('pedido_confirmado', pk=pedido.id)
-        else:
-            messages.error(request, f'El pago fue rechazado. Código: {response.get("response_code")}')
+            messages.error(request, f'El pago fue rechazado por Webpay. Código: {response.get("response_code")}. Tu carrito sigue disponible.')
             return redirect('ver_carrito')
             
     except Exception as e:
